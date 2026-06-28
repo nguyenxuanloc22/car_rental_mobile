@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import '../models/vehicle.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
+import 'profile_screen.dart';
+import 'user/booking_history_screen.dart';
+import 'staff/staff_dashboard_screen.dart';
+import 'driver/driver_dashboard_screen.dart';
+import 'admin/admin_dashboard_screen.dart';
+import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,15 +18,17 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ApiService _apiService = ApiService();
-  
+
   List<Vehicle> _vehicles = [];
   bool _isLoading = true;
   String? _error;
   String _searchQuery = '';
-  
+
   bool _isLoggedIn = false;
   String? _userEmail;
   String? _userRole;
+
+  int _customerIndex = 0; // Bottom navbar index for USER/Guest
 
   // Gradient background cycle for vehicles without images
   final List<List<Color>> _cardGradients = [
@@ -54,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoggedIn = false;
         _userEmail = null;
         _userRole = null;
+        _customerIndex = 0; // reset tab for safety
       });
     }
   }
@@ -67,7 +76,6 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final list = await _apiService.fetchVehicles();
       setState(() {
-        // Filter by AVAILABLE like the web app
         _vehicles = list.where((v) => v.status == 'AVAILABLE').toList();
         _isLoading = false;
       });
@@ -123,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (result == true) {
       await _checkLoginStatus();
-      _loadVehicles(); // Reload in case tokens affect visibility
+      _loadVehicles(); // Reload
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -135,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _showBookingDialog(Vehicle vehicle) {
+  void _showBookingBottomSheet(Vehicle vehicle) {
     if (!_isLoggedIn) {
       showDialog(
         context: context,
@@ -166,39 +174,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     } else {
-      // Mock Booking confirmation
-      showDialog(
+      showModalBottomSheet(
         context: context,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Đặt xe ${vehicle.brand} ${vehicle.modelName}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Biển số: ${vehicle.plateNumber}', style: const TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              if (vehicle.fleetHubName != null) Text('Nhận tại: ${vehicle.fleetHubName}'),
-              const SizedBox(height: 8),
-              const Text('Phương thức: Tự lái (Nhận tại bãi xe)'),
-              const SizedBox(height: 8),
-              const Text('Giá thuê: Thỏa thuận theo thời gian thực tế'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _showBookingSuccessBanner(vehicle);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF16A34A)),
-              child: const Text('Xác nhận đặt xe', style: TextStyle(color: Colors.white)),
-            ),
-          ],
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        builder: (ctx) => _BookingFormBottomSheet(
+          vehicle: vehicle,
+          onSuccess: () {
+            _showBookingSuccessBanner(vehicle);
+          },
         ),
       );
     }
@@ -208,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: Colors.white,
-        duration: const Duration(seconds: 5),
+        duration: const Duration(seconds: 6),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: Color(0xFFD1FAE5), width: 1.5),
@@ -245,6 +229,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   InkWell(
                     onTap: () {
                       ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      setState(() {
+                        _customerIndex = 1; // redirect to booking history tab
+                      });
                     },
                     child: const Text(
                       'Xem lịch sử đặt xe →',
@@ -266,12 +253,87 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Parse color string from backend (e.g. 'Red', 'Blue', '#FFFFFF')
+  Color _parseColor(String colorName) {
+    switch (colorName.toLowerCase()) {
+      case 'red': return Colors.red;
+      case 'blue': return Colors.blue;
+      case 'green': return Colors.green;
+      case 'yellow': return Colors.yellow;
+      case 'black': return Colors.black;
+      case 'white': return Colors.white;
+      case 'grey':
+      case 'gray': return Colors.grey;
+      case 'orange': return Colors.orange;
+      case 'purple': return Colors.purple;
+      default:
+        try {
+          if (colorName.startsWith('#')) {
+            final hex = colorName.replaceAll('#', '');
+            if (hex.length == 6) {
+              return Color(int.parse('FF$hex', radix: 16));
+            } else if (hex.length == 8) {
+              return Color(int.parse(hex, radix: 16));
+            }
+          }
+        } catch (_) {}
+        return Colors.blueGrey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // -------------------------------------------------------------
+    // ROLE-BASED DASHBOARD ROUTING
+    // -------------------------------------------------------------
+    if (_isLoggedIn && _userRole == 'STAFF') {
+      return StaffDashboardScreen(onLogout: _handleLogout);
+    }
+    if (_isLoggedIn && _userRole == 'DRIVER') {
+      return DriverDashboardScreen(onLogout: _handleLogout);
+    }
+    if (_isLoggedIn && _userRole == 'ADMIN') {
+      return AdminDashboardScreen(onLogout: _handleLogout);
+    }
+
+    // Default Customer / Guest Shell
+    const primaryGreen = Color(0xFF16A34A);
+    
+    return Scaffold(
+      body: IndexedStack(
+        index: _customerIndex,
+        children: [
+          _buildCarCatalogTab(),
+          _isLoggedIn ? const BookingHistoryScreen() : _buildGuestPrompt('Xem lịch sử đặt xe & hóa đơn'),
+          _isLoggedIn ? ProfileScreen(onLogout: _handleLogout) : _buildGuestPrompt('Quản lý thông tin tài khoản & mật khẩu'),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _customerIndex,
+        selectedItemColor: primaryGreen,
+        unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
+        onTap: (index) {
+          setState(() {
+            _customerIndex = index;
+          });
+        },
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: 'Đặt xe'),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Chuyến đi'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Cá nhân'),
+        ],
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------
+  // CUSTOMER TAB 1: VEHICLE CATALOG
+  // -------------------------------------------------------------
+  Widget _buildCarCatalogTab() {
     const primaryGreen = Color(0xFF16A34A);
     const bgGray = Color(0xFFF9FAFB);
 
-    // Search and filter cars
     final filteredVehicles = _vehicles.where((v) {
       final term = _searchQuery.toLowerCase();
       if (term.isEmpty) return true;
@@ -286,92 +348,32 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 1,
-        title: Row(
-          children: [
-            Text(
-              'Car Rental',
-              style: TextStyle(
-                color: primaryGreen,
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
-                shadows: [
-                  Shadow(
-                    offset: const Offset(0, 1),
-                    blurRadius: 1,
-                    color: Colors.black.withOpacity(0.05),
-                  )
-                ]
-              ),
-            ),
-          ],
+        title: Text(
+          'Car Rental',
+          style: TextStyle(
+            color: primaryGreen,
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+            shadows: [
+              Shadow(offset: const Offset(0, 1), blurRadius: 1, color: Colors.black.withOpacity(0.05))
+            ]
+          ),
         ),
         actions: [
-          // Hotline number matching web app
           const Row(
             children: [
               Icon(Icons.phone, color: primaryGreen, size: 18),
               SizedBox(width: 4),
-              Text(
-                '1900 9999',
-                style: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold, fontSize: 14),
-              ),
+              Text('1900 9999', style: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold, fontSize: 14)),
             ],
           ),
           const SizedBox(width: 12),
-          
-          // User session display (Greeting vs login button)
           _isLoggedIn
-              ? PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'logout') {
-                      _handleLogout();
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      enabled: false,
-                      child: Text(
-                        _userEmail ?? '',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black54),
-                      ),
-                    ),
-                    PopupMenuItem(
-                      enabled: false,
-                      child: Text(
-                        'Vai trò: ${_userRole ?? "USER"}',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ),
-                    const PopupMenuDivider(),
-                    const PopupMenuItem(
-                      value: 'logout',
-                      child: Row(
-                        children: [
-                          Icon(Icons.logout, color: Colors.red, size: 18),
-                          SizedBox(width: 8),
-                          Text('Đăng xuất', style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
-                    ),
-                  ],
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: primaryGreen),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.person, color: primaryGreen, size: 16),
-                        SizedBox(width: 4),
-                        Text(
-                          'Xin chào!',
-                          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600, fontSize: 13),
-                        ),
-                      ],
-                    ),
+              ? Container(
+                  margin: const EdgeInsets.only(right: 12),
+                  child: IconButton(
+                    icon: const Icon(Icons.logout, color: Colors.redAccent),
+                    onPressed: _handleLogout,
                   ),
                 )
               : TextButton.icon(
@@ -379,12 +381,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: const Icon(Icons.person_outline, color: Colors.black87, size: 20),
                   label: const Text('Đăng nhập', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
                 ),
-          const SizedBox(width: 10),
         ],
       ),
       body: Column(
         children: [
-          // Subheader search section matching web page
+          // Search & refresh bar
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.white,
@@ -403,23 +404,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       fillColor: bgGray,
                       filled: true,
                       contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     ),
                   ),
                 ),
                 const SizedBox(width: 10),
-                // Reload/Refresh button
                 InkWell(
                   onTap: _loadVehicles,
                   child: Container(
                     padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade200),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(12)),
                     child: const Icon(Icons.refresh, color: Colors.grey),
                   ),
                 ),
@@ -427,7 +421,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           
-          // Car title counts section
+          // Vehicles count
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
@@ -435,10 +429,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Xe có sẵn',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
-                    ),
+                    const Text('Xe có sẵn', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
                     const SizedBox(height: 2),
                     Text(
                       _isLoading ? 'Đang tải...' : '${filteredVehicles.length} xe đang sẵn sàng để đặt',
@@ -450,19 +441,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // Main body content
+          // Main catalog body
           Expanded(
             child: _isLoading
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(primaryGreen)),
-                        SizedBox(height: 12),
-                        Text('Đang tải danh sách xe...', style: TextStyle(color: Colors.grey)),
-                      ],
-                    ),
-                  )
+                ? const Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(primaryGreen)))
                 : _error != null
                     ? Center(
                         child: Padding(
@@ -472,17 +454,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
                               const SizedBox(height: 12),
-                              Text(
-                                _error!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
-                              ),
+                              Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w500)),
                               const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: _loadVehicles,
-                                style: ElevatedButton.styleFrom(backgroundColor: primaryGreen),
-                                child: const Text('Thử lại', style: TextStyle(color: Colors.white)),
-                              ),
+                              ElevatedButton(onPressed: _loadVehicles, child: const Text('Thử lại')),
                             ],
                           ),
                         ),
@@ -494,12 +468,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 const Icon(Icons.directions_car_outlined, size: 64, color: Colors.grey),
                                 const SizedBox(height: 12),
-                                Text(
-                                  _searchQuery.isNotEmpty
-                                      ? 'Không tìm thấy xe phù hợp với "$_searchQuery"'
-                                      : 'Hiện không có xe nào khả dụng',
-                                  style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w500),
-                                ),
+                                Text(_searchQuery.isNotEmpty ? 'Không tìm thấy xe phù hợp với "$_searchQuery"' : 'Hiện không có xe nào khả dụng', style: const TextStyle(color: Colors.grey)),
                               ],
                             ),
                           )
@@ -518,69 +487,38 @@ class _HomeScreenState extends State<HomeScreen> {
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.04),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
+                                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
                                     border: Border.all(color: Colors.grey.shade100),
                                   ),
                                   clipBehavior: Clip.antiAlias,
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      // Image section or gradient placeholder
                                       Stack(
                                         children: [
                                           Container(
                                             height: 160,
                                             width: double.infinity,
                                             decoration: BoxDecoration(
-                                              gradient: LinearGradient(
-                                                colors: gradient,
-                                                begin: Alignment.topLeft,
-                                                end: Alignment.bottomRight,
-                                              ),
+                                              gradient: LinearGradient(colors: gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
                                             ),
                                             child: vehicle.imageUrl != null && vehicle.imageUrl!.isNotEmpty
                                                 ? Image.network(
                                                     vehicle.imageUrl!,
                                                     fit: BoxFit.cover,
-                                                    errorBuilder: (context, error, stackTrace) => const Icon(
-                                                      Icons.directions_car,
-                                                      size: 64,
-                                                      color: Colors.black26,
-                                                    ),
+                                                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.directions_car, size: 64, color: Colors.black26),
                                                   )
-                                                : const Icon(
-                                                    Icons.directions_car,
-                                                    size: 64,
-                                                    color: Colors.black26,
-                                                  ),
+                                                : const Icon(Icons.directions_car, size: 64, color: Colors.black26),
                                           ),
-                                          // Status Badge (AVAILABLE / "Có sẵn")
                                           Positioned(
                                             top: 12,
                                             right: 12,
                                             child: Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFDCFCE7),
-                                                borderRadius: BorderRadius.circular(12),
-                                              ),
-                                              child: const Text(
-                                                'Có sẵn',
-                                                style: TextStyle(
-                                                  color: Color(0xFF15803D),
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
+                                              decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(12)),
+                                              child: const Text('Có sẵn', style: TextStyle(color: Color(0xFF15803D), fontSize: 11, fontWeight: FontWeight.bold)),
                                             ),
                                           ),
-                                          // Color dot
                                           if (vehicle.color != null)
                                             Positioned(
                                               bottom: 12,
@@ -592,111 +530,57 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   shape: BoxShape.circle,
                                                   color: _parseColor(vehicle.color!),
                                                   border: Border.all(color: Colors.white, width: 2),
-                                                  boxShadow: const [
-                                                    BoxShadow(color: Colors.black12, blurRadius: 2)
-                                                  ],
+                                                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 2)],
                                                 ),
                                               ),
                                             ),
                                         ],
                                       ),
-                                      
-                                      // Detail section
                                       Padding(
                                         padding: const EdgeInsets.all(16.0),
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            Text(
-                                              '${vehicle.brand} ${vehicle.modelName}'.trim(),
-                                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                            ),
+                                            Text('${vehicle.brand} ${vehicle.modelName}'.trim(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                                             const SizedBox(height: 2),
-                                            Text(
-                                              vehicle.plateNumber,
-                                              style: TextStyle(
-                                                fontFamily: 'monospace',
-                                                color: Colors.grey.shade500,
-                                                fontSize: 13,
-                                              ),
-                                            ),
+                                            Text(vehicle.plateNumber, style: TextStyle(fontFamily: 'monospace', color: Colors.grey.shade500, fontSize: 13)),
                                             const SizedBox(height: 10),
-                                            
-                                            // Stats Row
                                             Row(
                                               children: [
-                                                // Battery level if present
                                                 if (vehicle.batteryLevel != null) ...[
-                                                  Icon(
-                                                    Icons.battery_charging_full,
-                                                    size: 14,
-                                                    color: vehicle.batteryLevel! >= 50 ? primaryGreen : Colors.orange,
-                                                  ),
+                                                  Icon(Icons.battery_charging_full, size: 14, color: vehicle.batteryLevel! >= 50 ? primaryGreen : Colors.orange),
                                                   const SizedBox(width: 3),
-                                                  Text(
-                                                    '${vehicle.batteryLevel}%',
-                                                    style: const TextStyle(fontSize: 12, color: Colors.black54),
-                                                  ),
+                                                  Text('${vehicle.batteryLevel}%', style: const TextStyle(fontSize: 12, color: Colors.black54)),
                                                   const SizedBox(width: 12),
                                                 ],
-                                                // Fleet Hub Name if present
                                                 if (vehicle.fleetHubName != null) ...[
                                                   const Icon(Icons.location_on, size: 14, color: Colors.grey),
                                                   const SizedBox(width: 3),
-                                                  Expanded(
-                                                    child: Text(
-                                                      vehicle.fleetHubName!,
-                                                      overflow: TextOverflow.ellipsis,
-                                                      style: const TextStyle(fontSize: 12, color: Colors.black54),
-                                                    ),
-                                                  ),
+                                                  Expanded(child: Text(vehicle.fleetHubName!, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Colors.black54))),
                                                   const SizedBox(width: 12),
                                                 ],
-                                                // Odometer Km
                                                 if (vehicle.odometerKm != null) ...[
                                                   const Icon(Icons.speed, size: 14, color: Colors.grey),
                                                   const SizedBox(width: 3),
-                                                  Text(
-                                                    '${vehicle.odometerKm!.toInt()} km',
-                                                    style: const TextStyle(fontSize: 12, color: Colors.black54),
-                                                  ),
+                                                  Text('${vehicle.odometerKm!.toInt()} km', style: const TextStyle(fontSize: 12, color: Colors.black54)),
                                                 ],
                                               ],
                                             ),
-                                            
                                             const Divider(height: 24, thickness: 0.5),
-                                            
-                                            // Pricing and CTA button
                                             Row(
                                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                               children: [
-                                                const Text(
-                                                  'Giá thuê thỏa thuận',
-                                                  style: TextStyle(
-                                                    color: Colors.grey,
-                                                    fontSize: 12,
-                                                    fontStyle: FontStyle.italic,
-                                                  ),
-                                                ),
+                                                const Text('Giá thuê thỏa thuận', style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic)),
                                                 ElevatedButton(
                                                   style: ElevatedButton.styleFrom(
                                                     backgroundColor: primaryGreen,
-                                                    foregroundColor: Colors.white,
-                                                    shape: RoundedRectangleBorder(
-                                                      borderRadius: BorderRadius.circular(8.0),
-                                                    ),
-                                                    padding: const EdgeInsets.symmetric(
-                                                      horizontal: 16,
-                                                      vertical: 10,
-                                                    ),
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+                                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                                   ),
-                                                  onPressed: () => _showBookingDialog(vehicle),
+                                                  onPressed: () => _showBookingBottomSheet(vehicle),
                                                   child: const Row(
                                                     children: [
-                                                      Text(
-                                                        'Đặt ngay',
-                                                        style: TextStyle(fontWeight: FontWeight.bold),
-                                                      ),
+                                                      Text('Đặt ngay', style: TextStyle(fontWeight: FontWeight.bold)),
                                                       SizedBox(width: 4),
                                                       Icon(Icons.chevron_right, size: 16),
                                                     ],
@@ -719,32 +603,396 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Parse color string from backend (e.g. 'Red', 'Blue', '#FFFFFF')
-  Color _parseColor(String colorName) {
-    switch (colorName.toLowerCase()) {
-      case 'red': return Colors.red;
-      case 'blue': return Colors.blue;
-      case 'green': return Colors.green;
-      case 'yellow': return Colors.yellow;
-      case 'black': return Colors.black;
-      case 'white': return Colors.white;
-      case 'grey':
-      case 'gray': return Colors.grey;
-      case 'orange': return Colors.orange;
-      case 'purple': return Colors.purple;
-      default:
-        // Try hex code parsing
-        try {
-          if (colorName.startsWith('#')) {
-            final hex = colorName.replaceAll('#', '');
-            if (hex.length == 6) {
-              return Color(int.parse('FF$hex', radix: 16));
-            } else if (hex.length == 8) {
-              return Color(int.parse(hex, radix: 16));
-            }
-          }
-        } catch (_) {}
-        return Colors.blueGrey;
+  // Guest State prompt widget
+  Widget _buildGuestPrompt(String description) {
+    const primaryGreen = Color(0xFF16A34A);
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock_person_outlined, size: 80, color: Colors.grey.shade300),
+              const SizedBox(height: 16),
+              const Text('Yêu cầu đăng nhập', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(
+                description,
+                style: const TextStyle(color: Colors.grey, fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _navigateToLogin,
+                style: ElevatedButton.styleFrom(backgroundColor: primaryGreen, minimumSize: const Size(200, 48)),
+                child: const Text('Đăng nhập ngay', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// -------------------------------------------------------------
+// CUSTOM CONFIGURATION BOOKING BOTTOM SHEET
+// -------------------------------------------------------------
+class _BookingFormBottomSheet extends StatefulWidget {
+  final Vehicle vehicle;
+  final VoidCallback onSuccess;
+
+  const _BookingFormBottomSheet({
+    required this.vehicle,
+    required this.onSuccess,
+  });
+
+  @override
+  State<_BookingFormBottomSheet> createState() => _BookingFormBottomSheetState();
+}
+
+class _BookingFormBottomSheetState extends State<_BookingFormBottomSheet> {
+  final ApiService _apiService = ApiService();
+
+  bool _isWithDriver = false;
+  String _deliveryMode = 'SELF_PICKUP'; // SELF_PICKUP, DELIVERY
+  final _addressController = TextEditingController();
+  final _priceController = TextEditingController(text: '500000');
+
+  DateTime? _startDate;
+  DateTime? _endDate;
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _addressController.dispose();
+    _priceController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDateTime(bool isStart) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(hours: 1)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (date == null || !mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (time == null || !mounted) return;
+
+    setState(() {
+      if (isStart) {
+        _startDate = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      } else {
+        _endDate = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      }
+    });
+  }
+
+  Future<void> _submitBooking() async {
+    if (_startDate == null || _endDate == null) {
+      _showError('Vui lòng chọn thời gian bắt đầu và kết thúc!');
+      return;
     }
+    if (_startDate!.isAfter(_endDate!) || _startDate!.isAtSameMomentAs(_endDate!)) {
+      _showError('Thời gian kết thúc phải sau thời gian bắt đầu!');
+      return;
+    }
+    final priceStr = _priceController.text;
+    final price = double.tryParse(priceStr) ?? 0;
+    if (price <= 0) {
+      _showError('Vui lòng nhập giá thuê hợp lệ!');
+      return;
+    }
+    if (_isWithDriver && _deliveryMode == 'DELIVERY' && _addressController.text.trim().isEmpty) {
+      _showError('Vui lòng nhập địa chỉ tài xế đến đón!');
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+    });
+
+    try {
+      final userId = await _apiService.getUserId();
+      
+      // format format: 2026-06-28T12:00:00
+      final formatter = DateFormat("yyyy-MM-dd'T'HH:mm:ss");
+      final startFormatted = formatter.format(_startDate!);
+      final endFormatted = formatter.format(_endDate!);
+
+      final payload = {
+        'userId': userId,
+        'deliveryMode': _deliveryMode,
+        'deliveryAddress': (_isWithDriver && _deliveryMode == 'DELIVERY') ? _addressController.text.trim() : null,
+        'rentalUnits': [
+          {
+            'vehicleId': widget.vehicle.id,
+            'isWithDriver': _isWithDriver,
+            'startTime': startFormatted,
+            'endTime': endFormatted,
+            'unitPrice': price,
+          }
+        ]
+      };
+
+      await _apiService.createBooking(payload);
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onSuccess();
+      }
+    } catch (e) {
+      _showError(e.toString().replaceAll('Exception: ', ''));
+    } finally {
+      setState(() {
+        _submitting = false;
+      });
+    }
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  String _formatDateTimeDisplay(DateTime? dt) {
+    if (dt == null) return 'Chọn ngày giờ';
+    return DateFormat('dd/MM/yyyy HH:mm').format(dt);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const primaryGreen = Color(0xFF16A34A);
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+        left: 20,
+        right: 20,
+        top: 24,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 48,
+                height: 5,
+                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Đặt xe của bạn', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 2),
+                    Text('${widget.vehicle.brand} ${widget.vehicle.modelName} — ${widget.vehicle.plateNumber}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                  ],
+                ),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+              ],
+            ),
+            const Divider(height: 24),
+
+            // Service Mode
+            const Text('Loại hình dịch vụ *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _isWithDriver = false;
+                        _deliveryMode = 'SELF_PICKUP';
+                      });
+                    },
+                    icon: Icon(Icons.directions_car, color: !_isWithDriver ? primaryGreen : Colors.grey),
+                    label: Text('Tự lái', style: TextStyle(color: !_isWithDriver ? primaryGreen : Colors.grey, fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: !_isWithDriver ? primaryGreen : Colors.grey.shade300, width: 1.5),
+                      backgroundColor: !_isWithDriver ? primaryGreen.withOpacity(0.05) : Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _isWithDriver = true;
+                      });
+                    },
+                    icon: Icon(Icons.person, color: _isWithDriver ? primaryGreen : Colors.grey),
+                    label: Text('Có tài xế', style: TextStyle(color: _isWithDriver ? primaryGreen : Colors.grey, fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: _isWithDriver ? primaryGreen : Colors.grey.shade300, width: 1.5),
+                      backgroundColor: _isWithDriver ? primaryGreen.withOpacity(0.05) : Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // If with driver, select delivery mode
+            if (_isWithDriver) ...[
+              const Text('Phương thức đón khách *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          _deliveryMode = 'SELF_PICKUP';
+                        });
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: _deliveryMode == 'SELF_PICKUP' ? primaryGreen : Colors.grey.shade300),
+                        backgroundColor: _deliveryMode == 'SELF_PICKUP' ? primaryGreen.withOpacity(0.05) : Colors.white,
+                      ),
+                      child: Text('Đón tại bãi xe', style: TextStyle(color: _deliveryMode == 'SELF_PICKUP' ? primaryGreen : Colors.grey, fontSize: 13)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          _deliveryMode = 'DELIVERY';
+                        });
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: _deliveryMode == 'DELIVERY' ? primaryGreen : Colors.grey.shade300),
+                        backgroundColor: _deliveryMode == 'DELIVERY' ? primaryGreen.withOpacity(0.05) : Colors.white,
+                      ),
+                      child: Text('Giao tận nơi', style: TextStyle(color: _deliveryMode == 'DELIVERY' ? primaryGreen : Colors.grey, fontSize: 13)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // If delivery address is required
+            if (_isWithDriver && _deliveryMode == 'DELIVERY') ...[
+              const Text('Địa chỉ đón khách *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _addressController,
+                decoration: InputDecoration(
+                  hintText: 'VD: 123 Nguyễn Văn Linh, Quận 7, TP.HCM',
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Date time picks
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Nhận xe *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      const SizedBox(height: 6),
+                      OutlinedButton.icon(
+                        onPressed: () => _pickDateTime(true),
+                        icon: const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                        label: Text(
+                          _formatDateTimeDisplay(_startDate),
+                          style: TextStyle(fontSize: 12, color: _startDate != null ? Colors.black87 : Colors.grey),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 44),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Trả xe *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      const SizedBox(height: 6),
+                      OutlinedButton.icon(
+                        onPressed: () => _pickDateTime(false),
+                        icon: const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                        label: Text(
+                          _formatDateTimeDisplay(_endDate),
+                          style: TextStyle(fontSize: 12, color: _endDate != null ? Colors.black87 : Colors.grey),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 44),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Rental Price
+            const Text('Giá thỏa thuận (VNĐ/ngày) *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _priceController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Confirm Button
+            ElevatedButton(
+              onPressed: _submitting ? null : _submitBooking,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryGreen,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: _submitting
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+                    )
+                  : const Text('Xác nhận đặt xe', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
   }
 }

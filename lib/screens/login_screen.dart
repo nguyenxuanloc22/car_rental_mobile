@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? successMessage;
@@ -245,13 +246,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: TextStyle(color: Colors.grey, fontSize: 14),
                       ),
                       GestureDetector(
-                        onTap: () {
-                          // Could navigate to register, for now show standard snackbar
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Tính năng Đăng ký đang được phát triển trên mobile!'),
-                            ),
+                        onTap: () async {
+                          final msg = await Navigator.push<String>(
+                            context,
+                            MaterialPageRoute(builder: (context) => const RegisterScreen()),
                           );
+                          if (msg != null && mounted) {
+                            setState(() {
+                              _successMessage = msg;
+                              _errorMessage = null;
+                            });
+                          }
                         },
                         child: const Text(
                           'Đăng ký',
