@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/booking.dart';
-import '../../services/api_service.dart';
+import '../../services/booking_api_service.dart';
 import 'package:intl/intl.dart';
 
 class DriverStatsTab extends StatefulWidget {
@@ -11,7 +11,7 @@ class DriverStatsTab extends StatefulWidget {
 }
 
 class _DriverStatsTabState extends State<DriverStatsTab> {
-  final ApiService _apiService = ApiService();
+  final BookingApiService _apiService = BookingApiService();
   bool _isLoading = true;
   String? _error;
 

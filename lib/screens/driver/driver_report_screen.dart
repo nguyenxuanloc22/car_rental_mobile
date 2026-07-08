@@ -410,7 +410,7 @@ class _DriverReportScreenState extends State<DriverReportScreen> {
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
-                                        r['status'] ?? 'Chờ duyệt',
+                                        r['status']?.toString() ?? 'Chờ duyệt',
                                         style: TextStyle(color: statColor, fontWeight: FontWeight.bold, fontSize: 10),
                                       ),
                                     ),
@@ -432,7 +432,7 @@ class _DriverReportScreenState extends State<DriverReportScreen> {
                                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                                 decoration: BoxDecoration(color: sevColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
                                                 child: Text(
-                                                  'Mức độ: ${_getSeverityText(r['severity'] ?? 'medium')}',
+                                                  'Mức độ: ${_getSeverityText(r['severity']?.toString() ?? 'medium')}',
                                                   style: TextStyle(color: sevColor, fontSize: 10, fontWeight: FontWeight.bold),
                                                 ),
                                               ),

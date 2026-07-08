@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
+import '../../services/vehicle_api_service.dart';
+import '../../services/booking_api_service.dart';
 import '../../models/vehicle.dart';
 
 class AdminFleetScreen extends StatefulWidget {
@@ -52,7 +53,7 @@ class _AdminVehiclesListTab extends StatefulWidget {
 }
 
 class _AdminVehiclesListTabState extends State<_AdminVehiclesListTab> {
-  final ApiService _apiService = ApiService();
+  final VehicleApiService _apiService = VehicleApiService();
   List<Vehicle> _vehicles = [];
   bool _isLoading = true;
   String? _error;
@@ -119,17 +120,17 @@ class _AdminVehiclesListTabState extends State<_AdminVehiclesListTab> {
 
   void _showVehicleForm({Vehicle? vehicle}) {
     final isEdit = vehicle != null;
-    final brandController = TextEditingController(text: isEdit ? vehicle.brand : '');
-    final modelController = TextEditingController(text: isEdit ? vehicle.modelName : '');
-    final plateController = TextEditingController(text: isEdit ? vehicle.plateNumber : '');
-    final vinController = TextEditingController(text: isEdit ? vehicle.vin : '');
-    final yearController = TextEditingController(text: isEdit ? vehicle.manufactureYear?.toString() : '2026');
-    final odoController = TextEditingController(text: isEdit ? vehicle.odometerKm?.toInt().toString() : '0');
-    final colorController = TextEditingController(text: isEdit ? vehicle.color : '');
-    final hubIdController = TextEditingController(text: isEdit ? vehicle.fleetHubId?.toString() : '1');
+    final brandController = TextEditingController(text: isEdit ? vehicle!.brand : '');
+    final modelController = TextEditingController(text: isEdit ? vehicle!.modelName : '');
+    final plateController = TextEditingController(text: isEdit ? vehicle!.plateNumber : '');
+    final vinController = TextEditingController(text: isEdit ? vehicle!.vin : '');
+    final yearController = TextEditingController(text: isEdit ? vehicle!.manufactureYear?.toString() : '2026');
+    final odoController = TextEditingController(text: isEdit ? vehicle!.odometerKm?.toInt().toString() : '0');
+    final colorController = TextEditingController(text: isEdit ? vehicle!.color : '');
+    final hubIdController = TextEditingController(text: isEdit ? vehicle!.fleetHubId?.toString() : '1');
 
-    String selectedStatus = isEdit ? vehicle.status : 'AVAILABLE';
-    bool isVirtual = isEdit ? (vehicle.isVirtual ?? false) : false;
+    String selectedStatus = isEdit ? vehicle!.status : 'AVAILABLE';
+    bool isVirtual = isEdit ? (vehicle!.isVirtual ?? false) : false;
 
     showModalBottomSheet(
       context: context,
@@ -300,7 +301,7 @@ class _AdminVehiclesListTabState extends State<_AdminVehiclesListTab> {
 
                       try {
                         if (isEdit) {
-                          await _apiService.updateVehicle(vehicle.id, data);
+                          await _apiService.updateVehicle(vehicle!.id, data);
                           _showSnackBar('Cập nhật xe thành công!', Colors.green);
                         } else {
                           await _apiService.createVehicle(data);
@@ -531,7 +532,7 @@ class _AdminDriversListTab extends StatefulWidget {
 }
 
 class _AdminDriversListTabState extends State<_AdminDriversListTab> {
-  final ApiService _apiService = ApiService();
+  final BookingApiService _apiService = BookingApiService();
   List<Map<String, dynamic>> _drivers = [];
   bool _isLoading = true;
   String? _error;
@@ -622,11 +623,11 @@ class _AdminDriversListTabState extends State<_AdminDriversListTab> {
                             itemCount: filtered.length,
                             itemBuilder: (ctx, index) {
                               final d = filtered[index];
-                              final status = d['status'] ?? 'INACTIVE';
-                              final license = d['licenseNumber'] ?? '—';
-                              final shift = d['currentShift'] ?? d['shift'] ?? '—';
-                              final name = d['fullName'] ?? d['name'] ?? 'Tài xế';
-                              final phone = d['phoneNumber'] ?? d['phone'] ?? '—';
+                              final status = (d['status'] ?? 'INACTIVE').toString();
+                              final license = (d['licenseNumber'] ?? '—').toString();
+                              final shift = (d['currentShift'] ?? d['shift'] ?? '—').toString();
+                              final name = (d['fullName'] ?? d['name'] ?? 'Tài xế').toString();
+                              final phone = (d['phoneNumber'] ?? d['phone'] ?? '—').toString();
 
                               return Card(
                                 margin: const EdgeInsets.only(bottom: 12),

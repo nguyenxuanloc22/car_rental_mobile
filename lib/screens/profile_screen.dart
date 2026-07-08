@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import '../services/auth_api_service.dart';
 import '../models/user_profile.dart';
 import 'package:intl/intl.dart';
 
@@ -12,7 +12,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final ApiService _apiService = ApiService();
+  final AuthApiService _apiService = AuthApiService();
   UserProfile? _profile;
   bool _isLoadingProfile = true;
   String? _profileError;
@@ -260,7 +260,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             children: [
                               CircleAvatar(
                                 radius: 36,
-                                backgroundColor: primaryGreen.withOpacity(0.1),
+                                backgroundColor: primaryGreen.withValues(alpha: 0.1),
                                 child: Text(
                                   _profile?.fullName.isNotEmpty == true ? _profile!.fullName[0].toUpperCase() : 'U',
                                   style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: primaryGreen),

@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 import '../../models/booking.dart';
-import '../../services/api_service.dart';
+import '../../services/auth_api_service.dart';
+import '../../services/booking_api_service.dart';
 import '../profile_screen.dart';
+import '../home_screen.dart';
 import 'staff_fleet_screen.dart';
 import 'package:intl/intl.dart';
 
 class StaffDashboardScreen extends StatefulWidget {
-  final VoidCallback onLogout;
-  const StaffDashboardScreen({super.key, required this.onLogout});
+  final VoidCallback? onLogout;
+  const StaffDashboardScreen({super.key, this.onLogout});
 
   @override
   State<StaffDashboardScreen> createState() => _StaffDashboardScreenState();
 }
 
 class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
+  final AuthApiService _authApiService = AuthApiService();
   int _currentIndex = 0;
   late List<Widget> _tabs;
 
@@ -24,8 +27,36 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
       _StaffBookingsTab(),
       _StaffHandoverReturnTab(),
       const StaffFleetScreen(),
-      ProfileScreen(onLogout: widget.onLogout),
+      ProfileScreen(onLogout: _handleInternalLogout),
     ];
+  }
+
+  Future<void> _handleInternalLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Đăng xuất'),
+        content: const Text('Xác nhận đăng xuất tài khoản Staff?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Đăng xuất', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _authApiService.logout();
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          (route) => false,
+        );
+      }
+    }
   }
 
   @override
@@ -67,7 +98,7 @@ class _StaffBookingsTab extends StatefulWidget {
 }
 
 class _StaffBookingsTabState extends State<_StaffBookingsTab> {
-  final ApiService _apiService = ApiService();
+  final BookingApiService _apiService = BookingApiService();
   List<Booking> _bookings = [];
   bool _isLoading = true;
   String? _error;
@@ -221,7 +252,7 @@ class _StaffBookingsTabState extends State<_StaffBookingsTab> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: (booking.status == 'PENDING' ? Colors.orange : Colors.blue).withOpacity(0.1),
+                                          color: (booking.status == 'PENDING' ? Colors.orange : Colors.blue).withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: Text(
@@ -329,7 +360,7 @@ class _AssignDriverDialog extends StatefulWidget {
 }
 
 class _AssignDriverDialogState extends State<_AssignDriverDialog> {
-  final ApiService _apiService = ApiService();
+  final BookingApiService _apiService = BookingApiService();
   List<Map<String, dynamic>> _drivers = [];
   bool _isLoading = true;
   String? _error;
@@ -423,7 +454,7 @@ class _StaffHandoverReturnTab extends StatefulWidget {
 }
 
 class _StaffHandoverReturnTabState extends State<_StaffHandoverReturnTab> {
-  final ApiService _apiService = ApiService();
+  final BookingApiService _apiService = BookingApiService();
   List<Booking> _bookings = [];
   bool _isLoading = true;
   String? _error;
@@ -655,7 +686,7 @@ class _StaffHandoverReturnTabState extends State<_StaffHandoverReturnTab> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: (isPickup ? Colors.blue : Colors.teal).withOpacity(0.1),
+                                          color: (isPickup ? Colors.blue : Colors.teal).withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: Text(

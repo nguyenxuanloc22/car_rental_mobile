@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
+import '../../services/auth_api_service.dart';
+import '../../services/booking_api_service.dart';
 import '../profile_screen.dart';
+import '../home_screen.dart';
 import 'admin_users_screen.dart';
 import 'admin_fleet_screen.dart';
 import 'admin_bookings_screen.dart';
@@ -8,14 +10,15 @@ import 'admin_incidents_screen.dart';
 import 'package:intl/intl.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
-  final VoidCallback onLogout;
-  const AdminDashboardScreen({super.key, required this.onLogout});
+  final VoidCallback? onLogout; // Optional now
+  const AdminDashboardScreen({super.key, this.onLogout});
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  final AuthApiService _authApiService = AuthApiService();
   int _currentIndex = 0;
   late List<Widget> _tabs;
 
@@ -28,8 +31,36 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       const AdminUsersScreen(),
       const AdminFleetScreen(),
       const AdminIncidentsScreen(),
-      ProfileScreen(onLogout: widget.onLogout),
+      ProfileScreen(onLogout: _handleInternalLogout),
     ];
+  }
+
+  Future<void> _handleInternalLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Đăng xuất'),
+        content: const Text('Bạn chắc chắn muốn thoát quyền Admin?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Đăng xuất', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _authApiService.logout();
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          (route) => false,
+        );
+      }
+    }
   }
 
   @override
@@ -75,7 +106,7 @@ class _AdminStatsTab extends StatefulWidget {
 }
 
 class _AdminStatsTabState extends State<_AdminStatsTab> {
-  final ApiService _apiService = ApiService();
+  final BookingApiService _apiService = BookingApiService();
   Map<String, dynamic> _stats = {};
   bool _isLoading = true;
   String? _error;
@@ -226,7 +257,7 @@ class _AdminStatsTabState extends State<_AdminStatsTab> {
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: color.withOpacity(0.1),
+              backgroundColor: color.withValues(alpha: 0.1),
               child: Icon(icon, color: color),
             ),
             const SizedBox(width: 12),

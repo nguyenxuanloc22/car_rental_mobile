@@ -159,7 +159,7 @@ class _AdminIncidentsScreenState extends State<AdminIncidentsScreen> {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: sevColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                        decoration: BoxDecoration(color: sevColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                         child: Text('Mức độ: $severity', style: TextStyle(color: sevColor, fontSize: 10, fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(width: 8),

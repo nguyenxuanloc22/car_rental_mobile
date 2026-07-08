@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import '../../services/api_service.dart';
+import '../../services/booking_api_service.dart';
 import '../../models/booking.dart';
 import 'package:intl/intl.dart';
 
@@ -23,7 +23,7 @@ class PaymentScreen extends StatefulWidget {
 }
 
 class _PaymentScreenState extends State<PaymentScreen> {
-  final ApiService _apiService = ApiService();
+  final BookingApiService _apiService = BookingApiService();
   String _paymentMethod = 'CASH'; // CASH, E_WALLET, BANK_TRANSFER, CREDIT_CARD
   bool _isLoading = false;
   String? _error;

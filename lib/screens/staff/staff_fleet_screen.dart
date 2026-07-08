@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
+import '../../services/booking_api_service.dart';
+import '../../services/vehicle_api_service.dart';
 import '../../models/vehicle.dart';
 
 class StaffFleetScreen extends StatefulWidget {
@@ -52,7 +53,7 @@ class _StaffDriversList extends StatefulWidget {
 }
 
 class _StaffDriversListState extends State<_StaffDriversList> {
-  final ApiService _apiService = ApiService();
+  final BookingApiService _apiService = BookingApiService();
   List<Map<String, dynamic>> _drivers = [];
   bool _isLoading = true;
   String? _error;
@@ -146,11 +147,11 @@ class _StaffDriversListState extends State<_StaffDriversList> {
                             itemCount: filtered.length,
                             itemBuilder: (ctx, index) {
                               final d = filtered[index];
-                              final status = d['status'] ?? 'INACTIVE';
-                              final license = d['licenseNumber'] ?? '—';
-                              final shift = d['currentShift'] ?? d['shift'] ?? '—';
-                              final name = d['fullName'] ?? d['name'] ?? 'Tài xế';
-                              final phone = d['phoneNumber'] ?? d['phone'] ?? '—';
+                              final status = (d['status'] ?? 'INACTIVE').toString();
+                              final license = (d['licenseNumber'] ?? '—').toString();
+                              final shift = (d['currentShift'] ?? d['shift'] ?? '—').toString();
+                              final name = (d['fullName'] ?? d['name'] ?? 'Tài xế').toString();
+                              final phone = (d['phoneNumber'] ?? d['phone'] ?? '—').toString();
 
                               return Card(
                                 margin: const EdgeInsets.only(bottom: 12),
@@ -169,7 +170,7 @@ class _StaffDriversListState extends State<_StaffDriversList> {
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                             decoration: BoxDecoration(
-                                              color: (status == 'ACTIVE' ? Colors.blue.shade50 : Colors.grey.shade100),
+                                              color: (status == 'ACTIVE' ? Colors.blue.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.1)),
                                               borderRadius: BorderRadius.circular(8),
                                             ),
                                             child: Text(
@@ -225,7 +226,7 @@ class _StaffVehiclesList extends StatefulWidget {
 }
 
 class _StaffVehiclesListState extends State<_StaffVehiclesList> {
-  final ApiService _apiService = ApiService();
+  final VehicleApiService _apiService = VehicleApiService();
   List<Vehicle> _vehicles = [];
   bool _isLoading = true;
   String? _error;
@@ -375,7 +376,7 @@ class _StaffVehiclesListState extends State<_StaffVehiclesList> {
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                             decoration: BoxDecoration(
-                                              color: statusColor.withOpacity(0.1),
+                                              color: statusColor.withValues(alpha: 0.1),
                                               borderRadius: BorderRadius.circular(8),
                                             ),
                                             child: Text(

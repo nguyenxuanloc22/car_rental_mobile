@@ -1,6 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
+import '../../services/auth_api_service.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   const AdminUsersScreen({super.key});
@@ -10,7 +10,7 @@ class AdminUsersScreen extends StatefulWidget {
 }
 
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
-  final ApiService _apiService = ApiService();
+  final AuthApiService _apiService = AuthApiService();
   List<Map<String, dynamic>> _users = [];
   List<Map<String, dynamic>> _roles = [];
   bool _isLoading = true;
@@ -340,7 +340,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: selectedGender,
+                          initialValue: selectedGender,
                           decoration: const InputDecoration(labelText: 'Giới tính', border: OutlineInputBorder()),
                           items: const [
                             DropdownMenuItem(value: 'MALE', child: Text('Nam')),
@@ -353,7 +353,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<int>(
-                          value: selectedRoleId,
+                          initialValue: selectedRoleId,
                           decoration: const InputDecoration(labelText: 'Vai trò', border: OutlineInputBorder()),
                           items: _roles.map((role) {
                             return DropdownMenuItem<int>(
@@ -505,7 +505,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _filterActive,
+                        initialValue: _filterActive,
                         decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 10)),
                         items: const [
                           DropdownMenuItem(value: 'all', child: Text('Tất cả trạng thái')),
@@ -576,7 +576,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                             decoration: BoxDecoration(
-                                              color: _getRoleColor(rName).withOpacity(0.1),
+                                              color: _getRoleColor(rName).withValues(alpha: 0.1),
                                               borderRadius: BorderRadius.circular(8),
                                             ),
                                             child: Text(

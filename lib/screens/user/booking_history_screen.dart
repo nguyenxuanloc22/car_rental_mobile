@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/booking.dart';
-import '../../services/api_service.dart';
+import '../../services/booking_api_service.dart';
 import 'payment_screen.dart';
 import 'package:intl/intl.dart';
 
@@ -12,7 +12,7 @@ class BookingHistoryScreen extends StatefulWidget {
 }
 
 class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
-  final ApiService _apiService = ApiService();
+  final BookingApiService _apiService = BookingApiService();
   List<Booking> _bookings = [];
   bool _isLoading = true;
   String? _error;
@@ -198,7 +198,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: _getStatusColor(booking.status).withOpacity(0.15),
+                          color: _getStatusColor(booking.status).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(

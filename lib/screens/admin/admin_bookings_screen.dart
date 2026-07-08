@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/booking.dart';
-import '../../services/api_service.dart';
+import '../../services/booking_api_service.dart';
 import 'package:intl/intl.dart';
 
 class AdminBookingsScreen extends StatefulWidget {
@@ -11,7 +11,7 @@ class AdminBookingsScreen extends StatefulWidget {
 }
 
 class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
-  final ApiService _apiService = ApiService();
+  final BookingApiService _apiService = BookingApiService();
   List<Booking> _bookings = [];
   bool _isLoading = true;
   String? _error;
@@ -92,6 +92,20 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
         });
       }
     }
+  }
+
+  Future<void> _showAssignDriverDialog(Booking booking, RentalUnit unit) async {
+    showDialog(
+      context: context,
+      builder: (ctx) => _AssignDriverDialog(
+        bookingId: booking.id,
+        rentalUnitId: unit.id,
+        onSuccess: () {
+          _showSnackBar('Đã phân công tài xế thành công!', Colors.green);
+          _loadBookings(refresh: true);
+        },
+      ),
+    );
   }
 
   Future<void> _handleCancel(Booking booking) async {
@@ -284,6 +298,22 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
                       if (vehicle?.plateNumber != null) Text(vehicle!.plateNumber, style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
                       const SizedBox(height: 4),
                       Text('Thuê: ${_formatDate(unit.startTime)} → ${_formatDate(unit.endTime)}', style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                      if (unit.isWithDriver && booking.status == 'CONFIRMED')
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _showAssignDriverDialog(booking, unit);
+                            },
+                            icon: const Icon(Icons.person_add, size: 14),
+                            label: const Text('Phân công tài xế', style: TextStyle(fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF16A34A),
+                              minimumSize: const Size(0, 32),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 );
@@ -453,7 +483,7 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _filterStatus,
+                    initialValue: _filterStatus,
                     decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 10)),
                     items: const [
                       DropdownMenuItem(value: 'ALL', child: Text('Tất cả trạng thái')),
@@ -507,7 +537,7 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
                         Text('Đơn hàng #${b.id}', style: const TextStyle(fontWeight: FontWeight.bold)),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                          decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                           child: Text(
                             _getStatusText(b.status),
                             style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 10),
@@ -516,7 +546,7 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
                       ],
                     ),
                     subtitle: Padding(
-                      padding: const EdgeInsets.top(8.0),
+                      padding: const EdgeInsets.only(top: 8.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -550,6 +580,112 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// -------------------------------------------------------------
+// ASSIGN DRIVER DIALOG (SHARED LOGIC)
+// -------------------------------------------------------------
+class _AssignDriverDialog extends StatefulWidget {
+  final int bookingId;
+  final int rentalUnitId;
+  final VoidCallback onSuccess;
+
+  const _AssignDriverDialog({
+    required this.bookingId,
+    required this.rentalUnitId,
+    required this.onSuccess,
+  });
+
+  @override
+  State<_AssignDriverDialog> createState() => _AssignDriverDialogState();
+}
+
+class _AssignDriverDialogState extends State<_AssignDriverDialog> {
+  final BookingApiService _apiService = BookingApiService();
+  List<Map<String, dynamic>> _drivers = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDrivers();
+  }
+
+  Future<void> _loadDrivers() async {
+    try {
+      final list = await _apiService.fetchAvailableDrivers();
+      setState(() {
+        _drivers = list;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _selectDriver(int driverId) async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      await _apiService.assignDriver(widget.bookingId, widget.rentalUnitId, driverId);
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onSuccess();
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Chọn tài xế rảnh', style: TextStyle(fontWeight: FontWeight.bold)),
+      content: _isLoading
+          ? const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()))
+          : _error != null
+              ? Text(_error!, style: const TextStyle(color: Colors.red))
+              : _drivers.isEmpty
+                  ? const Text('Hiện không có tài xế nào rảnh.')
+                  : SizedBox(
+                      width: double.maxFinite,
+                      height: 250,
+                      child: ListView.builder(
+                        itemCount: _drivers.length,
+                        itemBuilder: (context, index) {
+                          final driver = _drivers[index];
+                          final id = driver['id'] as int;
+                          final license = driver['licenseNumber'] ?? '';
+                          final location = driver['currentLocation'] ?? '';
+                          return ListTile(
+                            leading: const CircleAvatar(child: Icon(Icons.person)),
+                            title: Text('Tài xế #$id'),
+                            subtitle: Text('GPLX: $license - Vị trí: $location'),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () => _selectDriver(id),
+                          );
+                        },
+                      ),
+                    ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
+        ),
+      ],
     );
   }
 }

@@ -1,5 +1,5 @@
 class Vehicle {
-  final String id;
+  final int id;
   final String status;
   final String plateNumber;
   final double? odometerKm;
@@ -9,6 +9,10 @@ class Vehicle {
   final String brand;
   final String? imageUrl;
   final int? batteryLevel;
+  final String? vin;
+  final int? manufactureYear;
+  final int? fleetHubId;
+  final bool? isVirtual;
 
   Vehicle({
     required this.id,
@@ -21,6 +25,10 @@ class Vehicle {
     required this.brand,
     this.imageUrl,
     this.batteryLevel,
+    this.vin,
+    this.manufactureYear,
+    this.fleetHubId,
+    this.isVirtual,
   });
 
   factory Vehicle.fromJson(Map<String, dynamic> json) {
@@ -28,7 +36,7 @@ class Vehicle {
     final currentState = json['currentState'] as Map<String, dynamic>?;
 
     return Vehicle(
-      id: (json['id'] ?? '').toString(),
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '') ?? 0,
       status: json['status'] ?? 'AVAILABLE',
       plateNumber: json['plateNumber'] ?? '',
       odometerKm: json['odometerKm'] != null ? (json['odometerKm'] as num).toDouble() : null,
@@ -38,6 +46,10 @@ class Vehicle {
       brand: model != null ? (model['brand'] ?? '') : '',
       imageUrl: model != null ? model['imageUrl'] : null,
       batteryLevel: currentState != null ? currentState['batteryLevel'] as int? : null,
+      vin: json['vin'],
+      manufactureYear: json['manufactureYear'] as int?,
+      fleetHubId: json['fleetHubId'] as int?,
+      isVirtual: json['isVirtual'] as bool?,
     );
   }
 }

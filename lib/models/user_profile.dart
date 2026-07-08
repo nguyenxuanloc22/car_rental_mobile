@@ -19,13 +19,13 @@ class UserProfile {
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
-      id: json['id'] ?? '',
+      id: (json['id'] ?? '').toString(),
       fullName: json['fullName'] ?? '',
       email: json['email'] ?? '',
-      phone: json['phone'],
-      dob: json['dob'],
-      gender: json['gender'],
-      createdAt: json['createdAt'],
+      phone: json['phone'] ?? json['phoneNumber'] ?? '', // Xử lý cả 2 trường hợp đặt tên
+      dob: json['dob'] ?? '',
+      gender: json['gender'] ?? '',
+      createdAt: json['createdAt'] ?? '',
     );
   }
 }

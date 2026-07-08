@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import '../services/auth_api_service.dart';
 import 'register_screen.dart';
+import 'admin/admin_dashboard_screen.dart';
+import 'staff/staff_dashboard_screen.dart';
+import 'driver/driver_dashboard_screen.dart';
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? successMessage;
@@ -18,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _errorMessage;
   String? _successMessage;
 
-  final ApiService _apiService = ApiService();
+  final AuthApiService _apiService = AuthApiService();
 
   @override
   void initState() {
@@ -50,16 +54,46 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await _apiService.login(email, password);
+      final response = await _apiService.login(email, password);
+      
       if (mounted) {
-        // Return true to indicate successful login to the parent screen
-        Navigator.pop(context, true);
+        final role = response.role.toUpperCase();
+        
+        Widget nextScreen;
+        if (role == 'ADMIN') {
+          nextScreen = AdminDashboardScreen(onLogout: _handleLogoutFromDashboard);
+        } else if (role == 'STAFF') {
+          nextScreen = StaffDashboardScreen(onLogout: _handleLogoutFromDashboard);
+        } else if (role == 'DRIVER') {
+          nextScreen = DriverDashboardScreen(onLogout: _handleLogoutFromDashboard);
+        } else {
+          nextScreen = const HomeScreen();
+        }
+
+        // Navigate and clear the stack to prevent going back to login
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => nextScreen),
+          (route) => false,
+        );
       }
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;
       });
+    }
+  }
+
+  // Helper to handle logout if screens require a callback
+  void _handleLogoutFromDashboard() async {
+    await _apiService.logout();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        (route) => false,
+      );
     }
   }
 
@@ -81,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 borderRadius: BorderRadius.circular(24.0),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
+                    color: Colors.black.withValues(alpha: 0.06),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),

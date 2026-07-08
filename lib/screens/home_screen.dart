@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/vehicle.dart';
-import '../services/api_service.dart';
+import '../services/auth_api_service.dart';
+import '../services/vehicle_api_service.dart';
+import '../services/booking_api_service.dart';
 import 'login_screen.dart';
+import 'register_screen.dart';
+import 'register_screen.dart';
 import 'profile_screen.dart';
 import 'user/booking_history_screen.dart';
 import 'staff/staff_dashboard_screen.dart';
@@ -17,7 +21,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final ApiService _apiService = ApiService();
+  final AuthApiService _authApiService = AuthApiService();
+  final VehicleApiService _vehicleApiService = VehicleApiService();
 
   List<Vehicle> _vehicles = [];
   bool _isLoading = true;
@@ -48,10 +53,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _checkLoginStatus() async {
-    final loggedIn = await _apiService.isLoggedIn();
+    final loggedIn = await _authApiService.isLoggedIn();
     if (loggedIn) {
-      final email = await _apiService.getUserEmail();
-      final role = await _apiService.getRole();
+      final email = await _authApiService.getUserEmail();
+      final role = await _authApiService.getRole();
       setState(() {
         _isLoggedIn = true;
         _userEmail = email;
@@ -74,7 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final list = await _apiService.fetchVehicles();
+      final list = await _vehicleApiService.fetchVehicles();
       setState(() {
         _vehicles = list.where((v) => v.status == 'AVAILABLE').toList();
         _isLoading = false;
@@ -105,12 +110,20 @@ class _HomeScreenState extends State<HomeScreen> {
               setState(() {
                 _isLoading = true;
               });
-              await _apiService.logout();
+              await _authApiService.logout();
               await _checkLoginStatus();
               setState(() {
                 _isLoading = false;
               });
+              
               if (mounted) {
+                // FORCE RESTART TO HOME: This is the most reliable way to clear all role-based UI
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                  (route) => false,
+                );
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Đăng xuất thành công')),
                 );
@@ -283,18 +296,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // -------------------------------------------------------------
-    // ROLE-BASED DASHBOARD ROUTING
-    // -------------------------------------------------------------
-    if (_isLoggedIn && _userRole == 'STAFF') {
-      return StaffDashboardScreen(onLogout: _handleLogout);
-    }
-    if (_isLoggedIn && _userRole == 'DRIVER') {
-      return DriverDashboardScreen(onLogout: _handleLogout);
-    }
-    if (_isLoggedIn && _userRole == 'ADMIN') {
-      return AdminDashboardScreen(onLogout: _handleLogout);
-    }
+    // REMOVED: Immediate role-based dashboard routing that was overriding the Home Screen
 
     // Default Customer / Guest Shell
     const primaryGreen = Color(0xFF16A34A);
@@ -355,31 +357,39 @@ class _HomeScreenState extends State<HomeScreen> {
             fontWeight: FontWeight.bold,
             fontSize: 22,
             shadows: [
-              Shadow(offset: const Offset(0, 1), blurRadius: 1, color: Colors.black.withOpacity(0.05))
+              Shadow(offset: const Offset(0, 1), blurRadius: 1, color: Colors.black.withValues(alpha: 0.05))
             ]
           ),
         ),
         actions: [
-          const Row(
-            children: [
-              Icon(Icons.phone, color: primaryGreen, size: 18),
-              SizedBox(width: 4),
-              Text('1900 9999', style: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold, fontSize: 14)),
-            ],
-          ),
-          const SizedBox(width: 12),
+          if (_isLoggedIn && _userRole != 'CUSTOMER')
+            IconButton(
+              icon: const Icon(Icons.admin_panel_settings, color: primaryGreen),
+              tooltip: 'Vào trang quản trị',
+              onPressed: () {
+                if (_userRole == 'ADMIN') Navigator.push(context, MaterialPageRoute(builder: (_) => AdminDashboardScreen(onLogout: _handleLogout)));
+                if (_userRole == 'STAFF') Navigator.push(context, MaterialPageRoute(builder: (_) => StaffDashboardScreen(onLogout: _handleLogout)));
+                if (_userRole == 'DRIVER') Navigator.push(context, MaterialPageRoute(builder: (_) => DriverDashboardScreen(onLogout: _handleLogout)));
+              },
+            ),
           _isLoggedIn
-              ? Container(
-                  margin: const EdgeInsets.only(right: 12),
-                  child: IconButton(
-                    icon: const Icon(Icons.logout, color: Colors.redAccent),
-                    onPressed: _handleLogout,
-                  ),
+              ? IconButton(
+                  icon: const Icon(Icons.logout, color: Colors.redAccent),
+                  onPressed: _handleLogout,
                 )
-              : TextButton.icon(
-                  onPressed: _navigateToLogin,
-                  icon: const Icon(Icons.person_outline, color: Colors.black87, size: 20),
-                  label: const Text('Đăng nhập', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+              : Row(
+                  children: [
+                    TextButton(
+                      onPressed: _navigateToLogin,
+                      child: const Text('Đăng nhập', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+                    ),
+                    const Text('|', style: TextStyle(color: Colors.grey)),
+                    TextButton(
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                      child: const Text('Đăng ký', style: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                 ),
         ],
       ),
@@ -487,7 +497,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+                                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
                                     border: Border.all(color: Colors.grey.shade100),
                                   ),
                                   clipBehavior: Clip.antiAlias,
@@ -653,7 +663,7 @@ class _BookingFormBottomSheet extends StatefulWidget {
 }
 
 class _BookingFormBottomSheetState extends State<_BookingFormBottomSheet> {
-  final ApiService _apiService = ApiService();
+  final BookingApiService _apiService = BookingApiService();
 
   bool _isWithDriver = false;
   String _deliveryMode = 'SELF_PICKUP'; // SELF_PICKUP, DELIVERY

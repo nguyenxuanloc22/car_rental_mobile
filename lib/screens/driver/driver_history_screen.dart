@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/booking.dart';
-import '../../services/api_service.dart';
+import '../../services/booking_api_service.dart';
 import 'package:intl/intl.dart';
 
 class DriverHistoryScreen extends StatefulWidget {
@@ -11,7 +11,7 @@ class DriverHistoryScreen extends StatefulWidget {
 }
 
 class _DriverHistoryScreenState extends State<DriverHistoryScreen> {
-  final ApiService _apiService = ApiService();
+  final BookingApiService _apiService = BookingApiService();
   List<Booking> _trips = [];
   bool _isLoading = true;
   String? _error;

@@ -46,7 +46,7 @@ class Booking {
 
 class RentalUnit {
   final int id;
-  final String vehicleId;
+  final int vehicleId;
   final bool isWithDriver;
   final String startTime;
   final String endTime;
@@ -65,8 +65,8 @@ class RentalUnit {
 
   factory RentalUnit.fromJson(Map<String, dynamic> json) {
     return RentalUnit(
-      id: json['id'] as int? ?? 0,
-      vehicleId: (json['vehicleId'] ?? '').toString(),
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '') ?? 0,
+      vehicleId: json['vehicleId'] is int ? json['vehicleId'] : int.tryParse(json['vehicleId']?.toString() ?? '') ?? 0,
       isWithDriver: json['isWithDriver'] as bool? ?? false,
       startTime: json['startTime'] ?? '',
       endTime: json['endTime'] ?? '',
@@ -79,6 +79,7 @@ class RentalUnit {
 class Invoice {
   final int id;
   final String status;
+  final String type;
   final double amount;
   final String? paymentMethodType;
   final String? qrCodeData;
@@ -86,6 +87,7 @@ class Invoice {
   Invoice({
     required this.id,
     required this.status,
+    required this.type,
     required this.amount,
     this.paymentMethodType,
     this.qrCodeData,
@@ -93,8 +95,9 @@ class Invoice {
 
   factory Invoice.fromJson(Map<String, dynamic> json) {
     return Invoice(
-      id: json['id'] as int? ?? 0,
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '') ?? 0,
       status: json['status'] ?? 'UNPAID',
+      type: json['type'] ?? 'RENTAL',
       amount: (json['amount'] as num? ?? 0).toDouble(),
       paymentMethodType: json['paymentMethodType'],
       qrCodeData: json['qrCodeData'],
