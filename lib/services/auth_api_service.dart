@@ -77,7 +77,9 @@ class AuthApiService extends BaseApiService {
 
     if (response.statusCode == 200 && response.body.isNotEmpty) {
       final data = jsonDecode(response.body);
-      return UserProfile.fromJson(data);
+      // Handle nested data structure (API might return {data: {...}})
+      final profileData = data is Map && data.containsKey('data') ? data['data'] : data;
+      return UserProfile.fromJson(profileData);
     } else {
       handleError(response, 'Không thể tải thông tin hồ sơ.');
       throw Exception();

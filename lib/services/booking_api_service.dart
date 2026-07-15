@@ -412,4 +412,36 @@ class BookingApiService extends BaseApiService {
       handleError(response, 'Tạo hồ sơ khách hàng thất bại.');
     }
   }
+
+  Future<Map<String, dynamic>> getStaffByUserId(String userId) async {
+    final url = Uri.parse('$baseUrl/staffs/by-user/$userId');
+    final response = await http.get(
+      url,
+      headers: await getHeaders(requireAuth: true),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data is Map && data.containsKey('data') ? (data['data'] as Map<String, dynamic>? ?? {}) : (data as Map<String, dynamic>? ?? {});
+    } else {
+      handleError(response, 'Không thể tải thông tin hồ sơ nhân viên.');
+      throw Exception();
+    }
+  }
+
+  Future<Map<String, dynamic>> getCustomerByUserId(String userId) async {
+    final url = Uri.parse('$baseUrl/customers/by-user/$userId');
+    final response = await http.get(
+      url,
+      headers: await getHeaders(requireAuth: true),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data is Map && data.containsKey('data') ? (data['data'] as Map<String, dynamic>? ?? {}) : (data as Map<String, dynamic>? ?? {});
+    } else {
+      handleError(response, 'Không thể tải thông tin hồ sơ khách hàng.');
+      throw Exception();
+    }
+  }
 }

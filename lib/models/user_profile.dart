@@ -18,14 +18,18 @@ class UserProfile {
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
+    // Debug: In toàn bộ JSON ra console để bạn có thể xem các key thực tế
+    print("DEBUG: Raw Profile JSON: $json");
+    
     return UserProfile(
-      id: (json['id'] ?? '').toString(),
-      fullName: json['fullName'] ?? '',
+      id: (json['id'] ?? json['userId'] ?? '').toString(),
+      fullName: json['fullName'] ?? json['fullName'] ?? json['fullname'] ?? json['name'] ?? '',
       email: json['email'] ?? '',
-      phone: json['phone'] ?? json['phoneNumber'] ?? '', // Xử lý cả 2 trường hợp đặt tên
-      dob: json['dob'] ?? '',
-      gender: json['gender'] ?? '',
-      createdAt: json['createdAt'] ?? '',
+      // Thử tất cả các kiểu đặt tên biến thông dụng
+      phone: (json['phone'] ?? json['phoneNumber'] ?? json['phone_number'] ?? json['mobile'] ?? '').toString(), 
+      dob: (json['dob'] ?? json['dateOfBirth'] ?? json['birthDate'] ?? json['birthday'] ?? '').toString(),
+      gender: (json['gender'] ?? json['sex'] ?? json['genderType'] ?? '').toString(),
+      createdAt: (json['createdAt'] ?? json['createdDate'] ?? json['createAt'] ?? '').toString(),
     );
   }
 }

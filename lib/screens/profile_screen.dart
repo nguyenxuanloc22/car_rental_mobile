@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/auth_api_service.dart';
+import '../services/booking_api_service.dart';
 import '../models/user_profile.dart';
+import '../models/driver_profile.dart';
 import 'package:intl/intl.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -14,6 +16,10 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final AuthApiService _apiService = AuthApiService();
   UserProfile? _profile;
+  String? _userRole;
+  DriverProfile? _driverProfile;
+  Map<String, dynamic>? _staffProfile;
+  Map<String, dynamic>? _customerProfile;
   bool _isLoadingProfile = true;
   String? _profileError;
 
@@ -44,19 +50,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _isLoadingProfile = true;
       _profileError = null;
+      _userRole = null;
+      _driverProfile = null;
+      _staffProfile = null;
+      _customerProfile = null;
     });
+
+    UserProfile? profile;
+    String? role;
+
     try {
-      final profile = await _apiService.getProfile();
+      profile = await _apiService.getProfile();
+      role = await _apiService.getRole();
+      
       setState(() {
         _profile = profile;
-        _isLoadingProfile = false;
+        _userRole = role;
       });
     } catch (e) {
       setState(() {
         _profileError = e.toString().replaceAll('Exception: ', '');
         _isLoadingProfile = false;
       });
+      return;
     }
+
+    final bookingApi = BookingApiService();
+    if (role != null && profile.id.isNotEmpty) {
+      final roleUpper = role.toUpperCase();
+      try {
+        if (roleUpper == 'DRIVER') {
+          final driverProf = await bookingApi.getDriverByUserId(profile.id);
+          setState(() {
+            _driverProfile = driverProf;
+          });
+        } else if (roleUpper == 'STAFF') {
+          final staffProf = await bookingApi.getStaffByUserId(profile.id);
+          setState(() {
+            _staffProfile = staffProf;
+          });
+        } else if (roleUpper == 'CUSTOMER' || roleUpper == 'USER') {
+          final customerProf = await bookingApi.getCustomerByUserId(profile.id);
+          setState(() {
+            _customerProfile = customerProf;
+          });
+        }
+      } catch (e) {
+        debugPrint('Error fetching role profile details: $e');
+      }
+    }
+
+    setState(() {
+      _isLoadingProfile = false;
+    });
   }
 
   Future<void> _handleChangePassword() async {
@@ -322,18 +368,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               const Divider(height: 24),
                               _buildDetailRow(
                                 'Số điện thoại',
-                                (_profile?.phone != null && _profile!.phone!.trim().isNotEmpty)
-                                    ? _profile!.phone!.trim()
+                                (_profile?.phone != null && _profile!.phone!.toString().trim().isNotEmpty)
+                                    ? _profile!.phone!.toString().trim()
                                     : 'Chưa cập nhật',
                               ),
                               const SizedBox(height: 12),
                               _buildDetailRow('Ngày sinh', _formatDate(_profile?.dob)),
                               const SizedBox(height: 12),
-                              _buildDetailRow('Giới tính', _formatGender(_profile?.gender)),
+                              _buildDetailRow(
+                                'Giới tính', 
+                                (_profile?.gender != null && _profile!.gender!.toString().trim().isNotEmpty)
+                                    ? _formatGender(_profile!.gender)
+                                    : 'Chưa cập nhật'
+                              ),
                             ],
                           ),
                         ),
                       ),
+                      // Role specific details Section
+                      if (_userRole != null && _userRole!.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        _buildRoleDetailsCard(primaryGreen),
+                      ],
                       const SizedBox(height: 16),
 
                       // Change Password Section
@@ -427,12 +483,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildRoleDetailsCard(Color primaryGreen) {
+    final roleUpper = _userRole!.toUpperCase();
+    String title = '';
+    List<Widget> children = [];
+
+    if (roleUpper == 'DRIVER') {
+      title = 'Hồ sơ Tài xế';
+      final licenseNo = _driverProfile?.licenseNumber ?? 'Chưa cập nhật';
+      final licenseCls = _driverProfile?.licenseClass ?? 'Chưa cập nhật';
+      final status = _driverProfile?.status ?? 'INACTIVE';
+      
+      children = [
+        _buildDetailRow('Số GPLX', licenseNo),
+        const SizedBox(height: 12),
+        _buildDetailRow('Hạng bằng lái', licenseCls),
+        const SizedBox(height: 12),
+        _buildDetailRow(
+          'Trạng thái hoạt động',
+          status == 'ACTIVE' ? 'Đang hoạt động' : 'Chưa kích hoạt',
+          valueColor: status == 'ACTIVE' ? Colors.green : Colors.red,
+        ),
+      ];
+    } else if (roleUpper == 'STAFF') {
+      title = 'Hồ sơ Nhân viên';
+      final fleetHubId = _staffProfile?['fleetHubId']?.toString() ?? 'Chưa cập nhật';
+      final position = _staffProfile?['position']?.toString() ?? 'Chưa cập nhật';
+      
+      children = [
+        _buildDetailRow('Mã Hub (FleetHub ID)', fleetHubId),
+        const SizedBox(height: 12),
+        _buildDetailRow('Vị trí công tác', position),
+      ];
+    } else if (roleUpper == 'CUSTOMER' || roleUpper == 'USER') {
+      title = 'Hồ sơ Khách hàng';
+      final nationalId = _customerProfile?['nationalId']?.toString() ?? 'Chưa cập nhật';
+      final drivingLicense = _customerProfile?['drivingLicenseNumber']?.toString() ?? 'Chưa cập nhật';
+      
+      children = [
+        _buildDetailRow('Số CCCD/CMND', nationalId),
+        const SizedBox(height: 12),
+        _buildDetailRow('GPLX Tự lái', drivingLicense),
+      ];
+    } else {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 1,
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Divider(height: 24),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, {Color? valueColor}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14)),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black87)),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            color: valueColor ?? Colors.black87,
+          ),
+        ),
       ],
     );
   }
