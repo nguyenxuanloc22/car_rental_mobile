@@ -40,7 +40,8 @@ class VehicleApiService extends BaseApiService {
 
       return content.map((json) => Vehicle.fromJson(json)).toList();
     } else {
-      throw Exception('Không thể tải danh sách xe.');
+      handleError(response, 'Không thể tải danh sách xe.');
+      throw Exception();
     }
   }
 

@@ -50,7 +50,8 @@ class BookingApiService extends BaseApiService {
       }
       return content.map((json) => Booking.fromJson(json)).toList();
     } else {
-      throw Exception('Không thể tải lịch sử đặt xe.');
+      handleError(response, 'Không thể tải lịch sử đặt xe.');
+      throw Exception();
     }
   }
 
@@ -114,7 +115,8 @@ class BookingApiService extends BaseApiService {
       }
       return content.map((json) => Booking.fromJson(json)).toList();
     } else {
-      throw Exception('Không thể tải toàn bộ danh sách đặt xe.');
+      handleError(response, 'Không thể tải toàn bộ danh sách đặt xe.');
+      throw Exception();
     }
   }
 
@@ -161,7 +163,8 @@ class BookingApiService extends BaseApiService {
       }
       return [];
     } else {
-      throw Exception('Không thể tải danh sách tài xế rảnh.');
+      handleError(response, 'Không thể tải danh sách tài xế rảnh.');
+      throw Exception();
     }
   }
 
@@ -180,7 +183,8 @@ class BookingApiService extends BaseApiService {
       }
       return [];
     } else {
-      throw Exception('Không thể tải danh sách tài xế.');
+      handleError(response, 'Không thể tải danh sách tài xế.');
+      throw Exception();
     }
   }
 
@@ -264,7 +268,8 @@ class BookingApiService extends BaseApiService {
       }
       return content.map((json) => Booking.fromJson(json)).toList();
     } else {
-      throw Exception('Không thể tải danh sách chuyến đi của tài xế.');
+      handleError(response, 'Không thể tải danh sách chuyến đi của tài xế.');
+      throw Exception();
     }
   }
 

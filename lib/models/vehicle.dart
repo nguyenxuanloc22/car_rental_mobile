@@ -13,6 +13,8 @@ class Vehicle {
   final int? manufactureYear;
   final int? fleetHubId;
   final bool? isVirtual;
+  final double? latitude;
+  final double? longitude;
 
   Vehicle({
     required this.id,
@@ -29,6 +31,8 @@ class Vehicle {
     this.manufactureYear,
     this.fleetHubId,
     this.isVirtual,
+    this.latitude,
+    this.longitude,
   });
 
   factory Vehicle.fromJson(Map<String, dynamic> json) {
@@ -50,6 +54,8 @@ class Vehicle {
       manufactureYear: json['manufactureYear'] as int?,
       fleetHubId: json['fleetHubId'] as int?,
       isVirtual: json['isVirtual'] as bool?,
+      latitude: currentState != null ? (currentState['latitude'] as num?)?.toDouble() : null,
+      longitude: currentState != null ? (currentState['longitude'] as num?)?.toDouble() : null,
     );
   }
 }
