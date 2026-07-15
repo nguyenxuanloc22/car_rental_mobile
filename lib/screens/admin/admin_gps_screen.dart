@@ -131,7 +131,7 @@ class _AdminGpsScreenState extends State<AdminGpsScreen> {
                   ? LatLng(filtered.first.latitude!, filtered.first.longitude!)
                   : const LatLng(10.7769, 106.7009),
               initialZoom: 14.0,
-              onTap: (_, __) => setState(() => _selectedVehicle = null),
+              onTap: (tapPosition, point) => setState(() => _selectedVehicle = null),
             ),
             children: [
               TileLayer(
@@ -159,7 +159,7 @@ class _AdminGpsScreenState extends State<AdminGpsScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.8),
+                                  color: Colors.black.withOpacity(0.8),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
@@ -169,13 +169,13 @@ class _AdminGpsScreenState extends State<AdminGpsScreen> {
                               ),
                             const SizedBox(height: 4),
                             Container(
-                              padding: const EdgeInsets.all(isSelected ? 8 : 6),
+                              padding: EdgeInsets.all(isSelected ? 8 : 6),
                               decoration: BoxDecoration(
                                 color: isSelected ? grabGreen : color,
                                 shape: BoxShape.circle,
                                 border: Border.all(color: Colors.white, width: 2.5),
                                 boxShadow: [
-                                  BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 4))
+                                  BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))
                                 ],
                               ),
                               child: const Icon(Icons.directions_car, color: Colors.white, size: 20),
@@ -202,7 +202,7 @@ class _AdminGpsScreenState extends State<AdminGpsScreen> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(30),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 15, offset: const Offset(0, 5))
+                      BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 15, offset: const Offset(0, 5))
                     ],
                   ),
                   child: TextField(
@@ -210,9 +210,19 @@ class _AdminGpsScreenState extends State<AdminGpsScreen> {
                     decoration: InputDecoration(
                       hintText: 'Tìm kiếm phương tiện...',
                       prefixIcon: const Icon(Icons.search, color: grabGreen),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.tune, color: Colors.grey),
-                        onPressed: () {}, // Future filter dialog
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Auto', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                          Transform.scale(
+                            scale: 0.7,
+                            child: Switch(
+                              value: _isAutoRefresh,
+                              onChanged: _toggleAutoRefresh,
+                              activeColor: grabGreen,
+                            ),
+                          ),
+                        ],
                       ),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(vertical: 15),
@@ -286,7 +296,7 @@ class _AdminGpsScreenState extends State<AdminGpsScreen> {
                           width: 60,
                           height: 60,
                           decoration: BoxDecoration(
-                            color: grabGreen.withValues(alpha: 0.1),
+                            color: grabGreen.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(15),
                           ),
                           child: const Icon(Icons.directions_car, color: grabGreen, size: 30),
@@ -310,7 +320,7 @@ class _AdminGpsScreenState extends State<AdminGpsScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            color: _getStatusColor(_selectedVehicle!.status).withValues(alpha: 0.1),
+                            color: _getStatusColor(_selectedVehicle!.status).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -370,13 +380,17 @@ class _AdminGpsScreenState extends State<AdminGpsScreen> {
                 margin: const EdgeInsets.symmetric(horizontal: 40),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)]),
-                child: const Column(
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.location_off, size: 50, color: Colors.grey),
-                    SizedBox(height: 10),
-                    Text('Không tìm thấy xe', style: TextStyle(fontWeight: FontWeight.bold)),
-                    Text('Vui lòng kiểm tra lại bộ lọc hoặc GPS xe.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    Icon(Icons.location_off, size: 50, color: _error != null ? Colors.red : Colors.grey),
+                    const SizedBox(height: 10),
+                    Text(_error != null ? 'Lỗi kết nối' : 'Không tìm thấy xe', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(
+                      _error ?? 'Vui lòng kiểm tra lại bộ lọc hoặc GPS xe.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                   ],
                 ),
               ),
