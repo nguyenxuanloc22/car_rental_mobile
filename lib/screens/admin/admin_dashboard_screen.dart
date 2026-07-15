@@ -7,6 +7,7 @@ import 'admin_users_screen.dart';
 import 'admin_fleet_screen.dart';
 import 'admin_bookings_screen.dart';
 import 'admin_incidents_screen.dart';
+import 'admin_gps_screen.dart';
 import 'package:intl/intl.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -30,6 +31,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       const AdminBookingsScreen(),
       const AdminUsersScreen(),
       const AdminFleetScreen(),
+      const AdminGpsScreen(),
       const AdminIncidentsScreen(),
       ProfileScreen(onLogout: _handleInternalLogout),
     ];
@@ -87,6 +89,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'Đơn hàng'),
           BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Thành viên'),
           BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: 'Đội xe'),
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Bản đồ GPS'),
           BottomNavigationBarItem(icon: Icon(Icons.warning), label: 'Sự cố AI'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Cá nhân'),
         ],
