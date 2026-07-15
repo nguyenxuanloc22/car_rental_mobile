@@ -118,10 +118,10 @@ class _HomeScreenState extends State<HomeScreen> {
               });
               
               if (mounted) {
-                // FORCE RESTART TO HOME: This is the most reliable way to clear all role-based UI
+                // FORCE RESTART TO LOGIN:
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
                   (route) => false,
                 );
 

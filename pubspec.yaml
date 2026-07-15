@@ -33,6 +33,10 @@ dependencies:
   webview_flutter: ^4.14.0
   http: ^1.2.0
   shared_preferences: ^2.2.0
+  google_maps_flutter: ^2.11.0 # Hiển thị bản đồ
+  geolocator: ^13.0.0          # Lấy tọa độ GPS hiện tại (Latitude, Longitude)
+  permission_handler: ^11.3.0  # Xin quyền truy cập GPS của thiết bị
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
