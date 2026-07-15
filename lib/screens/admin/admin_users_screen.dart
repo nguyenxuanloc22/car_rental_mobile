@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../services/auth_api_service.dart';
+import '../../services/booking_api_service.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   const AdminUsersScreen({super.key});
@@ -227,220 +228,481 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final dobController = TextEditingController(text: isEdit ? (user['dob'] ?? '') : '');
     final passwordController = TextEditingController();
     
+    // Extra controllers for Driver profile
+    final licenseNumberController = TextEditingController();
+    final licenseClassController = TextEditingController(text: 'B2');
+    
+    // Extra controllers for Staff profile
+    final fleetHubIdController = TextEditingController(text: '1');
+    final positionController = TextEditingController(text: 'SUPPORT');
+    
+    // Extra controllers for Customer profile
+    final nationalIdController = TextEditingController();
+    final drivingLicenseNumberController = TextEditingController();
+
     String selectedGender = isEdit ? (user['gender'] ?? 'MALE') : 'MALE';
-    int? selectedRoleId = isEdit ? (user['role']?['id'] ?? _roles.firstWhere((r) => r['name'] == 'CUSTOMER', orElse: () => {'id': 2})['id']) : (_roles.firstWhere((r) => r['name'] == 'CUSTOMER', orElse: () => {'id': 2})['id']);
+    String selectedRoleName = isEdit
+        ? (user['role']?['name']?.toString().toUpperCase() ?? 'CUSTOMER')
+        : 'CUSTOMER';
     bool active = isEdit ? (user['isActive'] ?? user['active'] ?? true) : true;
     bool obscure = true;
 
-    showModalBottomSheet(
+    // Local error and loading state for Dialog
+    String? localError;
+    bool dialogLoading = false;
+
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-              top: 24,
-              left: 24,
-              right: 24,
-            ),
-            child: SingleChildScrollView(
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.9,
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
+              ),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Title bar
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(isEdit ? 'Chỉnh sửa tài khoản' : 'Tạo người dùng mới', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                      Text(
+                        isEdit ? 'Chỉnh sửa tài khoản' : 'Tạo người dùng mới',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: dialogLoading ? null : () => Navigator.pop(ctx),
+                      ),
                     ],
                   ),
                   const Divider(),
                   const SizedBox(height: 8),
 
-                  // Email
-                  TextField(
-                    controller: emailController,
-                    enabled: !isEdit,
-                    decoration: InputDecoration(
-                      labelText: 'Email *',
-                      border: const OutlineInputBorder(),
-                      fillColor: isEdit ? Colors.grey.shade100 : Colors.white,
-                      filled: isEdit,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Full name
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Họ và tên *', border: OutlineInputBorder()),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Password (only for create)
-                  if (!isEdit) ...[
-                    TextField(
-                      controller: passwordController,
-                      obscureText: obscure,
-                      decoration: InputDecoration(
-                        labelText: 'Mật khẩu *',
-                        border: const OutlineInputBorder(),
-                        suffixIcon: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(obscure ? Icons.visibility : Icons.visibility_off),
-                              onPressed: () => setModalState(() => obscure = !obscure),
+                  // Form content scrollable area
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Email
+                          TextField(
+                            controller: emailController,
+                            enabled: !isEdit && !dialogLoading,
+                            decoration: InputDecoration(
+                              labelText: 'Email *',
+                              border: const OutlineInputBorder(),
+                              fillColor: isEdit ? Colors.grey.shade100 : Colors.white,
+                              filled: isEdit,
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.key, color: Colors.blue),
-                              onPressed: () {
-                                const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#';
-                                final rand = Random();
-                                final pass = List.generate(10, (index) => chars[rand.nextInt(chars.length)]).join();
-                                setModalState(() {
-                                  passwordController.text = pass;
-                                });
-                              },
-                              tooltip: 'Tạo mật khẩu ngẫu nhiên',
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Full name
+                          TextField(
+                            controller: nameController,
+                            enabled: !dialogLoading,
+                            decoration: const InputDecoration(labelText: 'Họ và tên *', border: OutlineInputBorder()),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Password (only for create)
+                          if (!isEdit) ...[
+                            TextField(
+                              controller: passwordController,
+                              obscureText: obscure,
+                              enabled: !dialogLoading,
+                              decoration: InputDecoration(
+                                labelText: 'Mật khẩu *',
+                                border: const OutlineInputBorder(),
+                                suffixIcon: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(obscure ? Icons.visibility : Icons.visibility_off),
+                                      onPressed: dialogLoading ? null : () => setModalState(() => obscure = !obscure),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.key, color: Colors.blue),
+                                      onPressed: dialogLoading ? null : () {
+                                        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#';
+                                        final rand = Random();
+                                        final pass = List.generate(10, (index) => chars[rand.nextInt(chars.length)]).join();
+                                        setModalState(() {
+                                          passwordController.text = pass;
+                                        });
+                                      },
+                                      tooltip: 'Tạo mật khẩu ngẫu nhiên',
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
+                            const SizedBox(height: 12),
                           ],
-                        ),
+
+                          // Phone
+                          TextField(
+                            controller: phoneController,
+                            keyboardType: TextInputType.phone,
+                            enabled: !dialogLoading,
+                            decoration: const InputDecoration(labelText: 'Số điện thoại *', border: OutlineInputBorder()),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Date of Birth (DatePicker)
+                          InkWell(
+                            onTap: dialogLoading ? null : () async {
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: dobController.text.isNotEmpty
+                                    ? (DateTime.tryParse(dobController.text) ?? DateTime(2000, 1, 1))
+                                    : DateTime(2000, 1, 1),
+                                firstDate: DateTime(1900),
+                                lastDate: DateTime.now(),
+                              );
+                              if (picked != null) {
+                                setModalState(() {
+                                  dobController.text =
+                                      "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                                });
+                              }
+                            },
+                            child: IgnorePointer(
+                              child: TextField(
+                                controller: dobController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Ngày sinh *',
+                                  border: OutlineInputBorder(),
+                                  suffixIcon: Icon(Icons.calendar_month, color: Colors.green),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Gender
+                          DropdownButtonFormField<String>(
+                            value: selectedGender,
+                            decoration: const InputDecoration(labelText: 'Giới tính', border: OutlineInputBorder()),
+                            items: const [
+                              DropdownMenuItem(value: 'MALE', child: Text('Nam')),
+                              DropdownMenuItem(value: 'FEMALE', child: Text('Nữ')),
+                              DropdownMenuItem(value: 'OTHER', child: Text('Khác')),
+                            ],
+                            onChanged: dialogLoading ? null : (val) => setModalState(() => selectedGender = val ?? 'MALE'),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Role Selection
+                          DropdownButtonFormField<String>(
+                            value: selectedRoleName,
+                            decoration: const InputDecoration(labelText: 'Vai trò', border: OutlineInputBorder()),
+                            items: _roles.map((role) {
+                              final rName = (role['name'] ?? 'CUSTOMER').toString().toUpperCase();
+                              return DropdownMenuItem<String>(
+                                value: rName,
+                                child: Text(rName),
+                              );
+                            }).toList(),
+                            onChanged: dialogLoading ? null : (val) {
+                              if (val != null) {
+                                setModalState(() => selectedRoleName = val);
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Active status toggle
+                          CheckboxListTile(
+                            contentPadding: EdgeInsets.zero,
+                            value: active,
+                            title: const Text('Kích hoạt tài khoản'),
+                            onChanged: dialogLoading ? null : (val) => setModalState(() => active = val ?? true),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // DYNAMIC PROFILE FIELDS FOR CREATION ONLY
+                          if (!isEdit) ...[
+                            const Divider(),
+                            const SizedBox(height: 8),
+                            if (selectedRoleName == 'DRIVER') ...[
+                              const Text('Thông tin bổ sung: TÀI XẾ', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: licenseNumberController,
+                                enabled: !dialogLoading,
+                                decoration: const InputDecoration(labelText: 'Số GPLX *', border: OutlineInputBorder(), hintText: 'Ví dụ: 790123456789'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: licenseClassController,
+                                enabled: !dialogLoading,
+                                decoration: const InputDecoration(labelText: 'Hạng bằng lái *', border: OutlineInputBorder(), hintText: 'Ví dụ: B2, C, D'),
+                              ),
+                            ] else if (selectedRoleName == 'STAFF') ...[
+                              const Text('Thông tin bổ sung: NHÂN VIÊN', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: fleetHubIdController,
+                                keyboardType: TextInputType.number,
+                                enabled: !dialogLoading,
+                                decoration: const InputDecoration(labelText: 'Mã Hub làm việc (FleetHub ID) *', border: OutlineInputBorder(), hintText: 'Ví dụ: 1'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: positionController,
+                                enabled: !dialogLoading,
+                                decoration: const InputDecoration(labelText: 'Vị trí công tác *', border: OutlineInputBorder(), hintText: 'Ví dụ: SUPPORT, MANAGER'),
+                              ),
+                            ] else if (selectedRoleName == 'CUSTOMER') ...[
+                              const Text('Thông tin bổ sung: KHÁCH HÀNG', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: nationalIdController,
+                                enabled: !dialogLoading,
+                                decoration: const InputDecoration(labelText: 'Số CCCD/CMND *', border: OutlineInputBorder(), hintText: 'Ví dụ: 079123456789'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: drivingLicenseNumberController,
+                                enabled: !dialogLoading,
+                                decoration: const InputDecoration(labelText: 'Số GPLX khách tự lái (nếu có)', border: OutlineInputBorder(), hintText: 'Ví dụ: 790123456789'),
+                              ),
+                            ],
+                            const SizedBox(height: 16),
+                          ],
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                  ),
+
+                  // Display local error message
+                  if (localError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      localError!,
+                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
+                      textAlign: TextAlign.center,
+                    ),
                   ],
 
-                  // Phone & Dob
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: phoneController,
-                          keyboardType: TextInputType.phone,
-                          decoration: const InputDecoration(labelText: 'Số điện thoại', border: OutlineInputBorder()),
-                        ),
+                  // Loading indicator inside the dialog
+                  if (dialogLoading) ...[
+                    const SizedBox(height: 12),
+                    const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: dobController,
-                          decoration: const InputDecoration(labelText: 'Ngày sinh (YYYY-MM-DD)', border: OutlineInputBorder()),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Gender & Role ID
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: selectedGender,
-                          decoration: const InputDecoration(labelText: 'Giới tính', border: OutlineInputBorder()),
-                          items: const [
-                            DropdownMenuItem(value: 'MALE', child: Text('Nam')),
-                            DropdownMenuItem(value: 'FEMALE', child: Text('Nữ')),
-                            DropdownMenuItem(value: 'OTHER', child: Text('Khác')),
-                          ],
-                          onChanged: (val) => setModalState(() => selectedGender = val ?? 'MALE'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<int>(
-                          initialValue: selectedRoleId,
-                          decoration: const InputDecoration(labelText: 'Vai trò', border: OutlineInputBorder()),
-                          items: _roles.map((role) {
-                            return DropdownMenuItem<int>(
-                              value: role['id'] as int,
-                              child: Text(role['name'] ?? ''),
-                            );
-                          }).toList(),
-                          onChanged: (val) => setModalState(() => selectedRoleId = val),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Active status toggle
-                  CheckboxListTile(
-                    value: active,
-                    title: const Text('Kích hoạt tài khoản'),
-                    onChanged: (val) => setModalState(() => active = val ?? true),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Action Buttons
-                  ElevatedButton(
-                    onPressed: () async {
-                      final email = emailController.text.trim();
-                      final name = nameController.text.trim();
-                      final phone = phoneController.text.trim();
-                      final dob = dobController.text.trim();
-
-                      if (email.isEmpty || name.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Vui lòng nhập Email và Họ tên!'), backgroundColor: Colors.red),
-                        );
-                        return;
-                      }
-
-                      final Map<String, dynamic> data = {
-                        'email': email,
-                        'fullName': name,
-                        'phone': phone,
-                        'gender': selectedGender,
-                        'dob': dob.isEmpty ? null : dob,
-                        'roleId': selectedRoleId,
-                        'isActive': active,
-                      };
-
-                      if (!isEdit) {
-                        final pass = passwordController.text.trim();
-                        if (pass.isEmpty || pass.length < 6) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Vui lòng điền mật khẩu tối thiểu 6 ký tự!'), backgroundColor: Colors.red),
-                          );
-                          return;
-                        }
-                        data['password'] = pass;
-                      }
-
-                      Navigator.pop(ctx);
-                      setState(() {
-                        _isLoading = true;
-                      });
-
-                      try {
-                        if (isEdit) {
-                          final String userId = (user['userId'] ?? user['id'] ?? '').toString();
-                          await _apiService.updateAdminUser(userId, data);
-                          _showSnackBar('Cập nhật tài khoản thành công!', Colors.green);
-                        } else {
-                          await _apiService.createAdminUser(data);
-                          _showSnackBar('Tạo tài khoản mới thành công!', Colors.green);
-                        }
-                        _loadData();
-                      } catch (e) {
-                        _showSnackBar(e.toString().replaceAll('Exception: ', ''), Colors.red);
-                        setState(() {
-                          _isLoading = false;
-                        });
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF16A34A),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: Text(isEdit ? 'Lưu thay đổi' : 'Tạo người dùng', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ],
+
+                  // Bottom buttons
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: dialogLoading ? null : () => Navigator.pop(ctx),
+                        child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: dialogLoading ? null : () async {
+                          final email = emailController.text.trim();
+                          final name = nameController.text.trim();
+                          final phone = phoneController.text.trim();
+                          final dob = dobController.text.trim();
+
+                          // 1. Core validations
+                          if (email.isEmpty) {
+                            setModalState(() {
+                              localError = 'Email không được để trống!';
+                            });
+                            return;
+                          }
+                          final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                          if (!emailRegex.hasMatch(email)) {
+                            setModalState(() {
+                              localError = 'Email không đúng định dạng!';
+                            });
+                            return;
+                          }
+
+                          if (name.isEmpty) {
+                            setModalState(() {
+                              localError = 'Họ và tên không được để trống!';
+                            });
+                            return;
+                          }
+
+                          if (phone.isEmpty) {
+                            setModalState(() {
+                              localError = 'Số điện thoại không được để trống!';
+                            });
+                            return;
+                          }
+                          final phoneRegex = RegExp(r'^(0|\+84)[3|5|7|8|9][0-9]{8}$');
+                          if (!phoneRegex.hasMatch(phone)) {
+                            setModalState(() {
+                              localError = 'Số điện thoại không hợp lệ (Ví dụ: 0912345678)!';
+                            });
+                            return;
+                          }
+
+                          if (dob.isEmpty) {
+                            setModalState(() {
+                              localError = 'Vui lòng chọn ngày sinh!';
+                            });
+                            return;
+                          }
+
+                          String? pass;
+                          if (!isEdit) {
+                            pass = passwordController.text.trim();
+                            if (pass.isEmpty) {
+                              setModalState(() {
+                                localError = 'Mật khẩu không được để trống!';
+                              });
+                              return;
+                            }
+                            if (pass.length < 6) {
+                              setModalState(() {
+                                localError = 'Mật khẩu tối thiểu phải từ 6 ký tự!';
+                              });
+                              return;
+                            }
+
+                            // Dynamic fields validation
+                            if (selectedRoleName == 'DRIVER') {
+                              if (licenseNumberController.text.trim().isEmpty) {
+                                setModalState(() {
+                                  localError = 'Số GPLX cho tài xế bắt buộc điền!';
+                                });
+                                return;
+                              }
+                              if (licenseClassController.text.trim().isEmpty) {
+                                setModalState(() {
+                                  localError = 'Hạng bằng lái cho tài xế bắt buộc điền!';
+                                });
+                                return;
+                              }
+                            } else if (selectedRoleName == 'STAFF') {
+                              if (fleetHubIdController.text.trim().isEmpty || int.tryParse(fleetHubIdController.text.trim()) == null) {
+                                setModalState(() {
+                                  localError = 'Mã Hub làm việc không hợp lệ!';
+                                });
+                                return;
+                              }
+                              if (positionController.text.trim().isEmpty) {
+                                setModalState(() {
+                                  localError = 'Vị trí công tác cho nhân viên bắt buộc điền!';
+                                });
+                                return;
+                              }
+                            } else if (selectedRoleName == 'CUSTOMER') {
+                              if (nationalIdController.text.trim().isEmpty) {
+                                setModalState(() {
+                                  localError = 'Số CCCD cho khách hàng bắt buộc điền!';
+                                });
+                                return;
+                              }
+                            }
+                          }
+
+                          final int roleId = _roles.firstWhere(
+                            (r) => r['name']?.toString().toUpperCase() == selectedRoleName,
+                            orElse: () => {'id': 2},
+                          )['id'] as int;
+
+                          final Map<String, dynamic> data = {
+                            'email': email,
+                            'fullName': name,
+                            'phone': phone,
+                            'gender': selectedGender,
+                            'dob': dob,
+                            'role': selectedRoleName,
+                            'roleName': selectedRoleName,
+                            'roleId': roleId,
+                            'isActive': active,
+                            'isDeleted': isEdit ? (user['isDeleted'] ?? false) : false,
+                          };
+
+                          if (!isEdit && pass != null) {
+                            data['password'] = pass;
+                          }
+
+                          setModalState(() {
+                            dialogLoading = true;
+                            localError = null;
+                          });
+
+                          try {
+                            if (isEdit) {
+                              final String userId = (user['userId'] ?? user['id'] ?? '').toString();
+                              await _apiService.updateAdminUser(userId, data);
+                            } else {
+                              // 1. Call IAM-service to create user
+                              final userResponse = await _apiService.createAdminUser(data);
+                              final String? newUserId = userResponse['userId']?.toString() ?? userResponse['id']?.toString();
+
+                              if (newUserId != null) {
+                                final bookingApi = BookingApiService();
+                                // 2. Call corresponding business profile creation API
+                                if (selectedRoleName == 'DRIVER') {
+                                  await bookingApi.createDriverProfile({
+                                    'userId': newUserId,
+                                    'licenseNumber': licenseNumberController.text.trim(),
+                                    'licenseClass': licenseClassController.text.trim(),
+                                    'currentLocation': 'Chưa cập nhật',
+                                    'status': 'ACTIVE'
+                                  });
+                                } else if (selectedRoleName == 'STAFF') {
+                                  await bookingApi.createStaffProfile({
+                                    'userId': newUserId,
+                                    'fleetHubId': int.parse(fleetHubIdController.text.trim()),
+                                    'position': positionController.text.trim()
+                                  });
+                                } else if (selectedRoleName == 'CUSTOMER') {
+                                  await bookingApi.createCustomerProfile({
+                                    'userId': newUserId,
+                                    'nationalId': nationalIdController.text.trim(),
+                                    'drivingLicenseNumber': drivingLicenseNumberController.text.trim().isEmpty
+                                        ? null
+                                        : drivingLicenseNumberController.text.trim()
+                                  });
+                                }
+                              }
+                            }
+                            
+                            Navigator.pop(ctx); // Close Dialog on Success
+                            _showSnackBar(
+                              isEdit ? 'Cập nhật tài khoản thành công!' : 'Tạo tài khoản và hồ sơ nghiệp vụ thành công!',
+                              Colors.green,
+                            );
+                            _loadData();
+                          } catch (e) {
+                            setModalState(() {
+                              dialogLoading = false;
+                              localError = e.toString().replaceAll('Exception: ', '');
+                            });
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF16A34A),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: Text(isEdit ? 'Lưu' : 'Tạo mới'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 24),
                 ],
               ),
             ),

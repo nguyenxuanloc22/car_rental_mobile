@@ -8,14 +8,18 @@ class BookingHistoryScreen extends StatefulWidget {
   const BookingHistoryScreen({super.key});
 
   @override
-  State<BookingHistoryScreen> createState() => _BookingHistoryScreenState();
+  BookingHistoryScreenState createState() => BookingHistoryScreenState();
 }
 
-class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
+class BookingHistoryScreenState extends State<BookingHistoryScreen> {
   final BookingApiService _apiService = BookingApiService();
   List<Booking> _bookings = [];
   bool _isLoading = true;
   String? _error;
+
+  void reload() {
+    _loadBookings();
+  }
 
   @override
   void initState() {

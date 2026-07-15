@@ -67,10 +67,13 @@ class AuthApiService extends BaseApiService {
 
   Future<UserProfile> getProfile() async {
     final url = Uri.parse('$baseUrl/auth/profile');
+    print('[AuthApiService] getProfile URL: $url');
     final response = await http.get(
       url,
       headers: await getHeaders(requireAuth: true),
     );
+    print('[AuthApiService] getProfile Status: ${response.statusCode}');
+    print('[AuthApiService] getProfile Body: ${response.body}');
 
     if (response.statusCode == 200 && response.body.isNotEmpty) {
       final data = jsonDecode(response.body);
@@ -175,15 +178,19 @@ class AuthApiService extends BaseApiService {
     ];
   }
 
-  Future<void> createAdminUser(Map<String, dynamic> userData) async {
+  Future<Map<String, dynamic>> createAdminUser(Map<String, dynamic> userData) async {
     final url = Uri.parse('$baseUrl/admin/users');
     final response = await http.post(
       url,
       headers: await getHeaders(requireAuth: true),
       body: jsonEncode(userData),
     );
-    if (response.statusCode != 200 && response.statusCode != 201) {
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = jsonDecode(response.body);
+      return data is Map && data.containsKey('data') ? data['data'] : data;
+    } else {
       handleError(response, 'Tạo người dùng thất bại.');
+      throw Exception();
     }
   }
 

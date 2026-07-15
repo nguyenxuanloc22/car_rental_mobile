@@ -46,6 +46,9 @@ class _DriverStatsTabState extends State<DriverStatsTab> {
 
       // 1. Fetch driver profile
       final profile = await _apiService.getDriverByUserId(userId);
+      if (profile.id == 0) {
+        throw Exception('Tài khoản của bạn chưa được thiết lập hồ sơ tài xế.');
+      }
       
       // 2. Fetch driver bookings
       final bookings = await _apiService.getDriverBookings(profile.id);

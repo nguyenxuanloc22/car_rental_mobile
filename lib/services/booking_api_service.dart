@@ -32,10 +32,13 @@ class BookingApiService extends BaseApiService {
 
   Future<List<Booking>> fetchUserBookings(String userId, {int page = 0, int size = 50}) async {
     final url = Uri.parse('$baseUrl/bookings/user/$userId?page=$page&size=$size');
+    print('[BookingApiService] fetchUserBookings URL: $url');
     final response = await http.get(
       url,
       headers: await getHeaders(requireAuth: true),
     );
+    print('[BookingApiService] fetchUserBookings Status: ${response.statusCode}');
+    print('[BookingApiService] fetchUserBookings Body: ${response.body}');
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -362,6 +365,51 @@ class BookingApiService extends BaseApiService {
           'CANCELLED': 3,
         }
       };
+    }
+  }
+
+  Future<void> createDriverProfile(Map<String, dynamic> payload) async {
+    final queryParams = payload.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value?.toString() ?? "")}')
+        .join('&');
+    final url = Uri.parse('$baseUrl/drivers?$queryParams');
+    final response = await http.post(
+      url,
+      headers: await getHeaders(requireAuth: true),
+      body: jsonEncode(payload),
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      handleError(response, 'Tạo hồ sơ tài xế thất bại.');
+    }
+  }
+
+  Future<void> createStaffProfile(Map<String, dynamic> payload) async {
+    final queryParams = payload.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value?.toString() ?? "")}')
+        .join('&');
+    final url = Uri.parse('$baseUrl/staffs?$queryParams');
+    final response = await http.post(
+      url,
+      headers: await getHeaders(requireAuth: true),
+      body: jsonEncode(payload),
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      handleError(response, 'Tạo hồ sơ nhân viên thất bại.');
+    }
+  }
+
+  Future<void> createCustomerProfile(Map<String, dynamic> payload) async {
+    final queryParams = payload.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value?.toString() ?? "")}')
+        .join('&');
+    final url = Uri.parse('$baseUrl/customers?$queryParams');
+    final response = await http.post(
+      url,
+      headers: await getHeaders(requireAuth: true),
+      body: jsonEncode(payload),
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      handleError(response, 'Tạo hồ sơ khách hàng thất bại.');
     }
   }
 }

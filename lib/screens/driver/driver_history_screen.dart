@@ -44,6 +44,9 @@ class _DriverHistoryScreenState extends State<DriverHistoryScreen> {
       }
 
       final profile = await _apiService.getDriverByUserId(userId);
+      if (profile.id == 0) {
+        throw Exception('Tài khoản của bạn chưa được thiết lập hồ sơ tài xế.');
+      }
       
       // Fetch both completed and cancelled
       final completed = await _apiService.getDriverBookings(profile.id);

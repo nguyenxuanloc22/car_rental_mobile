@@ -34,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _userRole;
 
   int _customerIndex = 0; // Bottom navbar index for USER/Guest
+  final GlobalKey<BookingHistoryScreenState> _bookingHistoryKey = GlobalKey<BookingHistoryScreenState>();
 
   // Gradient background cycle for vehicles without images
   final List<List<Color>> _cardGradients = [
@@ -245,6 +246,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       setState(() {
                         _customerIndex = 1; // redirect to booking history tab
                       });
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _bookingHistoryKey.currentState?.reload();
+                      });
                     },
                     child: const Text(
                       'Xem lịch sử đặt xe →',
@@ -306,7 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _customerIndex,
         children: [
           _buildCarCatalogTab(),
-          _isLoggedIn ? const BookingHistoryScreen() : _buildGuestPrompt('Xem lịch sử đặt xe & hóa đơn'),
+          _isLoggedIn ? BookingHistoryScreen(key: _bookingHistoryKey) : _buildGuestPrompt('Xem lịch sử đặt xe & hóa đơn'),
           _isLoggedIn ? ProfileScreen(onLogout: _handleLogout) : _buildGuestPrompt('Quản lý thông tin tài khoản & mật khẩu'),
         ],
       ),
@@ -319,6 +323,9 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() {
             _customerIndex = index;
           });
+          if (index == 1 && _isLoggedIn) {
+            _bookingHistoryKey.currentState?.reload();
+          }
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: 'Đặt xe'),

@@ -31,7 +31,7 @@ class Booking {
     List<Invoice> invs = invoicesList.map((i) => Invoice.fromJson(i)).toList();
 
     return Booking(
-      id: json['id'] as int? ?? 0,
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '') ?? 0,
       bookingCode: json['bookingCode'] ?? '',
       status: json['status'] ?? 'PENDING',
       deliveryMode: json['deliveryMode'] ?? 'SELF_PICKUP',

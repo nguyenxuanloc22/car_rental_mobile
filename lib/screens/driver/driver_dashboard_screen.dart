@@ -127,6 +127,9 @@ class _DriverTripsTabState extends State<_DriverTripsTab> {
       
       // Fetch driver profile to get the local driver ID
       final profile = await _apiService.getDriverByUserId(userId);
+      if (profile.id == 0) {
+        throw Exception('Tài khoản của bạn chưa được thiết lập hồ sơ tài xế.');
+      }
 
       // Fetch bookings assigned to this driver ID
       final list = await _apiService.getDriverBookings(profile.id);

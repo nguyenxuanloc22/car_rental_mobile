@@ -219,6 +219,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  String _formatGender(String? genderStr) {
+    if (genderStr == null || genderStr.trim().isEmpty) return 'Chưa cập nhật';
+    switch (genderStr.trim().toUpperCase()) {
+      case 'MALE':
+        return 'Nam';
+      case 'FEMALE':
+        return 'Nữ';
+      case 'OTHER':
+        return 'Khác';
+      default:
+        return genderStr;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     const primaryGreen = Color(0xFF16A34A);
@@ -306,11 +320,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             children: [
                               const Text('Chi tiết tài khoản', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                               const Divider(height: 24),
-                              _buildDetailRow('Số điện thoại', _profile?.phone ?? 'Chưa cập nhật'),
+                              _buildDetailRow(
+                                'Số điện thoại',
+                                (_profile?.phone != null && _profile!.phone!.trim().isNotEmpty)
+                                    ? _profile!.phone!.trim()
+                                    : 'Chưa cập nhật',
+                              ),
                               const SizedBox(height: 12),
                               _buildDetailRow('Ngày sinh', _formatDate(_profile?.dob)),
                               const SizedBox(height: 12),
-                              _buildDetailRow('Giới tính', _profile?.gender ?? 'Chưa cập nhật'),
+                              _buildDetailRow('Giới tính', _formatGender(_profile?.gender)),
                             ],
                           ),
                         ),
