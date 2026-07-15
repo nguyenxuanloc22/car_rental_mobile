@@ -114,7 +114,8 @@ class _DriverStatsTabState extends State<DriverStatsTab> {
     return NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(amount);
   }
 
-  String _formatDate(String dateStr) {
+  String _formatDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return 'N/A';
     try {
       final dt = DateTime.parse(dateStr);
       return DateFormat('dd/MM/yyyy').format(dt);

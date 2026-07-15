@@ -8,7 +8,9 @@ class VehicleApiService extends BaseApiService {
 
   // Singleton instance
   static final VehicleApiService _instance = VehicleApiService._internal();
+
   factory VehicleApiService() => _instance;
+
   VehicleApiService._internal();
 
   // -------------------------------------------------------------
@@ -45,6 +47,22 @@ class VehicleApiService extends BaseApiService {
     }
   }
 
+  Future<Vehicle?> getVehicleById(int vehicleId) async {
+    final url = Uri.parse('$baseUrl/vehicles/$vehicleId');
+    final response = await http.get(
+      url,
+      headers: await getHeaders(requireAuth: false),
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is Map && data.containsKey('data')) {
+        return Vehicle.fromJson(data['data']);
+      }
+      return Vehicle.fromJson(data);
+    }
+    return null;
+  }
+
   Future<void> createVehicle(Map<String, dynamic> data) async {
     final url = Uri.parse('$baseUrl/vehicles');
     final response = await http.post(
@@ -71,7 +89,10 @@ class VehicleApiService extends BaseApiService {
 
   Future<void> deleteVehicle(int vehicleId) async {
     final url = Uri.parse('$baseUrl/vehicles/$vehicleId');
-    final response = await http.delete(url, headers: await getHeaders(requireAuth: true));
+    final response = await http.delete(
+      url,
+      headers: await getHeaders(requireAuth: true),
+    );
     if (response.statusCode != 200) {
       handleError(response, 'Xóa xe thất bại.');
     }

@@ -6,6 +6,12 @@ class Booking {
   final String status;
   final String deliveryMode;
   final String? deliveryAddress;
+  final String? pickupAddress;
+  final String? dropoffAddress;
+  final double? pickupLatitude;
+  final double? pickupLongitude;
+  final double? dropoffLatitude;
+  final double? dropoffLongitude;
   final double totalAmount;
   final String createdAt;
   final List<RentalUnit> rentalUnits;
@@ -17,6 +23,12 @@ class Booking {
     required this.status,
     required this.deliveryMode,
     this.deliveryAddress,
+    this.pickupAddress,
+    this.dropoffAddress,
+    this.pickupLatitude,
+    this.pickupLongitude,
+    this.dropoffLatitude,
+    this.dropoffLongitude,
     required this.totalAmount,
     required this.createdAt,
     required this.rentalUnits,
@@ -36,6 +48,12 @@ class Booking {
       status: json['status'] ?? 'PENDING',
       deliveryMode: json['deliveryMode'] ?? 'SELF_PICKUP',
       deliveryAddress: json['deliveryAddress'],
+      pickupAddress: json['pickupAddress'],
+      dropoffAddress: json['dropoffAddress'],
+      pickupLatitude: json['pickupLatitude'] != null ? (json['pickupLatitude'] as num).toDouble() : null,
+      pickupLongitude: json['pickupLongitude'] != null ? (json['pickupLongitude'] as num).toDouble() : null,
+      dropoffLatitude: json['dropoffLatitude'] != null ? (json['dropoffLatitude'] as num).toDouble() : null,
+      dropoffLongitude: json['dropoffLongitude'] != null ? (json['dropoffLongitude'] as num).toDouble() : null,
       totalAmount: (json['totalAmount'] as num? ?? 0).toDouble(),
       createdAt: json['createdAt'] ?? '',
       rentalUnits: units,
@@ -48,8 +66,8 @@ class RentalUnit {
   final int id;
   final int vehicleId;
   final bool isWithDriver;
-  final String startTime;
-  final String endTime;
+  final String? startTime;
+  final String? endTime;
   final double unitPrice;
   final Vehicle? vehicle;
 
@@ -57,8 +75,8 @@ class RentalUnit {
     required this.id,
     required this.vehicleId,
     required this.isWithDriver,
-    required this.startTime,
-    required this.endTime,
+    this.startTime,
+    this.endTime,
     required this.unitPrice,
     this.vehicle,
   });
@@ -68,8 +86,8 @@ class RentalUnit {
       id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '') ?? 0,
       vehicleId: json['vehicleId'] is int ? json['vehicleId'] : int.tryParse(json['vehicleId']?.toString() ?? '') ?? 0,
       isWithDriver: json['isWithDriver'] as bool? ?? false,
-      startTime: json['startTime'] ?? '',
-      endTime: json['endTime'] ?? '',
+      startTime: json['startTime'],
+      endTime: json['endTime'],
       unitPrice: (json['unitPrice'] as num? ?? 0).toDouble(),
       vehicle: json['vehicle'] != null ? Vehicle.fromJson(json['vehicle']) : null,
     );

@@ -56,6 +56,8 @@ abstract class BaseApiService {
 
   Future<String?> getUserId() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('userId');
+    final uid = prefs.getString('userId');
+    if (uid != null && uid.trim().isEmpty) return null;
+    return uid;
   }
 }

@@ -265,7 +265,8 @@ class _DriverTripsTabState extends State<_DriverTripsTab> {
     );
   }
 
-  String _formatDate(String dateStr) {
+  String _formatDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return 'N/A';
     try {
       final dt = DateTime.parse(dateStr);
       return DateFormat('dd/MM/yyyy HH:mm').format(dt);

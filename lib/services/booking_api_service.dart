@@ -17,7 +17,7 @@ class BookingApiService extends BaseApiService {
   // CUSTOMER BOOKING & PAYMENT APIs
   // -------------------------------------------------------------
 
-  Future<void> createBooking(Map<String, dynamic> payload) async {
+  Future<Booking> createBooking(Map<String, dynamic> payload) async {
     final url = Uri.parse('$baseUrl/bookings');
     final response = await http.post(
       url,
@@ -27,6 +27,28 @@ class BookingApiService extends BaseApiService {
 
     if (response.statusCode != 200 && response.statusCode != 201) {
       handleError(response, 'Đặt xe thất bại. Vui lòng kiểm tra lại cấu hình.');
+      throw Exception('Đặt xe thất bại');
+    }
+    
+    final data = jsonDecode(response.body);
+    final bookingData = data is Map && data.containsKey('data') ? data['data'] : data;
+    return Booking.fromJson(bookingData);
+  }
+
+  Future<Booking> fetchBookingById(int bookingId) async {
+    final url = Uri.parse('$baseUrl/bookings/$bookingId');
+    final response = await http.get(
+      url,
+      headers: await getHeaders(requireAuth: true),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final bookingData = data is Map && data.containsKey('data') ? data['data'] : data;
+      return Booking.fromJson(bookingData);
+    } else {
+      handleError(response, 'Không thể tải thông tin chuyến đi.');
+      throw Exception('Không thể tải thông tin chuyến đi');
     }
   }
 
