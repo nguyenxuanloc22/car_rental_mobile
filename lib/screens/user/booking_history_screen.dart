@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/booking.dart';
 import '../../services/booking_api_service.dart';
 import 'payment_screen.dart';
+import 'booking_tracking_screen.dart';
 import 'package:intl/intl.dart';
 
 class BookingHistoryScreen extends StatefulWidget {
@@ -35,7 +36,7 @@ class BookingHistoryScreenState extends State<BookingHistoryScreen> {
 
     try {
       final userId = await _apiService.getUserId();
-      if (userId == null) {
+      if (userId == null || userId.isEmpty) {
         throw Exception('Vui lòng đăng nhập để xem lịch sử.');
       }
       final list = await _apiService.fetchUserBookings(userId);
@@ -157,7 +158,8 @@ class BookingHistoryScreenState extends State<BookingHistoryScreen> {
     return formatter.format(amount);
   }
 
-  String _formatDate(String dateStr) {
+  String _formatDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return 'N/A';
     try {
       final dt = DateTime.parse(dateStr);
       return DateFormat('dd/MM/yyyy HH:mm').format(dt);
@@ -261,8 +263,13 @@ class BookingHistoryScreenState extends State<BookingHistoryScreen> {
                             ),
                             const Divider(height: 24),
                             _buildInfoRow('Loại dịch vụ', unit.isWithDriver ? 'Có tài xế' : 'Tự lái'),
-                            _buildInfoRow('Nhận xe', _formatDate(unit.startTime)),
-                            _buildInfoRow('Trả xe', _formatDate(unit.endTime)),
+                            if (unit.isWithDriver) ...[
+                              _buildInfoRow('Điểm đón', booking.pickupAddress ?? 'N/A'),
+                              _buildInfoRow('Điểm đến', booking.dropoffAddress ?? 'N/A'),
+                            ] else ...[
+                              _buildInfoRow('Nhận xe', _formatDate(unit.startTime)),
+                              _buildInfoRow('Trả xe', _formatDate(unit.endTime)),
+                            ],
                             _buildInfoRow('Đơn giá', '${_formatMoney(unit.unitPrice)}/ngày'),
                           ],
                         ),
@@ -270,21 +277,23 @@ class BookingHistoryScreenState extends State<BookingHistoryScreen> {
                     }),
                   const SizedBox(height: 16),
 
-                  // Delivery Mode & Address
-                  const Text('Giao nhận xe', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(height: 8),
-                  Text(
-                    booking.deliveryMode == 'DELIVERY' ? '🚚 Giao xe tận nơi' : '🏢 Tự nhận tại bãi xe',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                  ),
-                  if (booking.deliveryAddress != null) ...[
-                    const SizedBox(height: 6),
+                  // Delivery Mode & Address (Only for self-drive or DELIVERY)
+                  if (!booking.rentalUnits.any((u) => u.isWithDriver) || booking.deliveryMode == 'DELIVERY') ...[
+                    const Text('Giao nhận xe', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 8),
                     Text(
-                      booking.deliveryAddress!,
-                      style: const TextStyle(fontSize: 13, color: Colors.grey),
+                      booking.deliveryMode == 'DELIVERY' ? '🚚 Giao xe tận nơi' : '🏢 Tự nhận tại bãi xe',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                     ),
+                    if (booking.deliveryAddress != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        booking.deliveryAddress!,
+                        style: const TextStyle(fontSize: 13, color: Colors.grey),
+                      ),
+                    ],
+                    const Divider(height: 32),
                   ],
-                  const Divider(height: 32),
 
                   // Pricing and invoices
                   Row(
@@ -324,6 +333,33 @@ class BookingHistoryScreenState extends State<BookingHistoryScreen> {
                   // Actions
                   Row(
                     children: [
+                      // Tracking Button (if with driver and in progress/confirmed)
+                      if (booking.rentalUnits.isNotEmpty && booking.rentalUnits.first.isWithDriver &&
+                          (booking.status == 'CONFIRMED' || booking.status == 'IN_PROGRESS'))
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => BookingTrackingScreen(booking: booking),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.map, color: Colors.white, size: 18),
+                            label: const Text('Theo dõi chuyến đi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blueAccent,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      if (booking.rentalUnits.isNotEmpty && booking.rentalUnits.first.isWithDriver &&
+                          (booking.status == 'CONFIRMED' || booking.status == 'IN_PROGRESS') &&
+                          (booking.status == 'PENDING' || booking.status == 'CONFIRMED' || isUnpaid))
+                        const SizedBox(width: 12),
+
                       // Cancel Button
                       if (booking.status == 'PENDING' || booking.status == 'CONFIRMED')
                         Expanded(
@@ -469,7 +505,7 @@ class BookingHistoryScreenState extends State<BookingHistoryScreen> {
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: statusColor.withOpacity(0.1),
+                                            color: statusColor.withValues(alpha: 0.1),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                           child: Text(

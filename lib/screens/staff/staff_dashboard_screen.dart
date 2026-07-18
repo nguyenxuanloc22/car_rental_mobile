@@ -169,7 +169,8 @@ class _StaffBookingsTabState extends State<_StaffBookingsTab> {
     return NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(amount);
   }
 
-  String _formatDate(String dateStr) {
+  String _formatDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return 'N/A';
     try {
       final dt = DateTime.parse(dateStr);
       return DateFormat('dd/MM/yyyy HH:mm').format(dt);
